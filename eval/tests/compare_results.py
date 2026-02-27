@@ -139,12 +139,13 @@ def main():
     parser.add_argument("--ml-dir", type=str, required=True, help="Directory containing MATLAB outputs")
     parser.add_argument("--py-dir", type=str, required=True, help="Directory containing Python outputs")
     parser.add_argument("--iter", type=int, default=500, help="Number of iterations used in the run")
-    parser.add_argument("--prefix", type=str, default="astrocytes", help="Prefix for filenames (default: astrocytes)")
+    parser.add_argument("--ml-prefix", type=str, default="astrocytes", help="Prefix for MATLAB filenames")
+    parser.add_argument("--py-prefix", type=str, default="astrocytes", help="Prefix for Python filenames")
     
     args = parser.parse_args()
     
-    ml_base = os.path.join(args.ml_dir, f"{args.prefix}_ml_{args.iter}")
-    py_base = os.path.join(args.py_dir, f"{args.prefix}_py_{args.iter}")
+    ml_base = os.path.join(args.ml_dir, f"{args.ml_prefix}_ml_{args.iter}")
+    py_base = os.path.join(args.py_dir, f"{args.py_prefix}_py_{args.iter}")
     
     compare_fidelity(
         ml_file=f"{ml_base}.txt",
