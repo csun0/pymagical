@@ -1,6 +1,11 @@
 [project]
 name = "pymagical"
-version = "0.1.0"
+dynamic = ["version"] 
+
+# Add this section to tell hatch to look at Git
+[tool.hatch.version]
+source = "vcs"
+
 description = "A Python port of the MAGICAL hierarchical Bayesian Gibbs sampler for regulatory circuit inference."
 authors = [
     { name = "C. Sun", email = "cs9095@princeton.edu" }
