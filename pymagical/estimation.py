@@ -314,8 +314,41 @@ def magical_estimation(
             scale_r = 1.0 / (beta_r + rss_r / (2*G*S))
             sigma_r_noise = 1.0 / np.random.gamma(shape=alpha_r + 0.5, scale=scale_r)
         else:
-            # NumPy path omitted for brevity in replace, but keeping it in logic
-            pass # (I will keep the existing NumPy code in the final file)
+            # Step 1: TF activity
+            t_a, t_r, t_sample = tf_activity_t_sampling(
+                atac_cell_vector, a_sample, rna_cell_vector, r_sample,
+                b, t_a, t_r, t_prior_mean, t_prior_var, sigma_a_noise, M, S, P, G
+            )
+            
+            # Step 2: TF-peak binding
+            b = tf_peak_binding_b_sampling(
+                atac_cell_vector, a_sample, b, t_a, b_state, b_mean, b_var, sigma_a_noise, M, S, P
+            )
+            
+            # Step 3: TF-peak binary state
+            b_state, b = tf_peak_binary_binding_b_state_sampling(
+                atac_cell_vector, a_sample, b, t_a, b_state, b_mean, b_var, b_prob, sigma_a_noise, M, S, P
+            )
+            
+            # Step 4: ATAC variance control
+            rss_a = np.sum((a_sample - b @ t_sample)**2)
+            scale_a = 1.0 / (beta_a + rss_a / (2*P*S))
+            sigma_a_noise = 1.0 / np.random.gamma(shape=alpha_a + 0.5, scale=scale_a)
+            
+            # Step 5: Peak-Gene looping
+            l = peak_gene_looping_l_sampling(
+                rna_cell_vector, r_sample, l, b, t_r, l_state, l_mean, l_var, sigma_r_noise, M, S, P, G
+            )
+            
+            # Step 6: Peak-Gene looping binary state
+            l_state, l = peak_gene_binary_looping_l_state_sampling(
+                rna_cell_vector, r_sample, l, b, t_r, l_state, l_mean, l_var, l_prob, sigma_r_noise, M, S, P, G
+            )
+            
+            # Step 7: RNA variance control
+            rss_r = np.sum((r_sample - l.T @ (b @ t_sample))**2)
+            scale_r = 1.0 / (beta_r + rss_r / (2*G*S))
+            sigma_r_noise = 1.0 / np.random.gamma(shape=alpha_r + 0.5, scale=scale_r)
         
         # Summary
         b_state_frq += b_state
