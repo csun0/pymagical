@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGICAL MATLAB Method Walkthrough</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }
+        h1, h2, h3 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h1 { font-size: 2.5em; }
+        h2 { font-size: 2em; }
+        h3 { font-size: 1.5em; border-bottom: 1px solid #ccc; }
+        code { background-color: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
+        pre { background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; border: 1px solid #ddd; }
+        .math { font-style: italic; font-family: 'Times New Roman', Times, serif; }
+        .variable { font-weight: bold; color: #e67e22; }
+        .container { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.1); }
+        .step { margin-bottom: 25px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MAGICAL MATLAB Method Walkthrough</h1>
+        <p>
+            This document provides a detailed walkthrough of the MAGICAL (<b>M</b>odeling <b>A</b>nd <b>G</b>enerative <b>I</b>nference of <b>C</b>is-regulatory <b>A</b>rchitecture and <b>L</b>ogic) method, based on the provided MATLAB source code. MAGICAL integrates single-cell RNA-seq and ATAC-seq data to infer gene regulatory circuits, including TF-peak binding and peak-gene looping interactions.
+        </p>
+
+        <h2>Overall Workflow</h2>
+        <p>
+            The main entry point is the <code>MAGICAL.m</code> script. It orchestrates the entire process, which can be broken down into four main stages:
+        </p>
+        <ol>
+            <li><strong>Data Loading:</strong> All input data (scRNA-seq, scATAC-seq, motif scans, genomic annotations) is loaded into memory.</li>
+            <li><strong>Candidate Circuit Construction:</strong> The vast search space is narrowed down by selecting a plausible set of candidate TFs, peaks, and genes based on expression, accessibility, and prior biological knowledge (e.g., TAD boundaries, motif scans).</li>
+            <li><strong>Model Initialization:</strong> Priors and initial values for the model's latent variables are estimated from the data. This is a critical step that grounds the model in biological reality.</li>
+            <li><strong>MAGICAL Estimation (Gibbs Sampling):</strong> A Bayesian inference scheme (Gibbs sampler) is used to iteratively sample from the posterior distribution of the model parameters, ultimately yielding probabilities for TF-peak binding and peak-gene looping.</li>
+        </ol>
+
+        <pre><code>
+% Main script: MAGICAL.m
+
+% 1. Load Data
+fprintf('loading all input data ...
+');
+% ... code to load scRNA, scATAC, motifs, etc. ...
+
+% 2. Candidate Circuits Construction
+fprintf('MAGICAL model initialization ...
+');
+if TAD_flag==1
+    [Candidate_TFs, ..., Candidate_Peak_Gene_looping, ...] = ...
+        Candidate_circuits_construction_with_TAD(...);
+else
+    [Candidate_TFs, ..., Candidate_Peak_Gene_looping, ...] = ...
+        Candidate_circuits_construction_without_TAD(...);
+end
+
+% 3. Model Initialization
+[T_A_initial, ..., L_prob] = ...
+    MAGICAL_initialization(...);
+
+% 4. MAGICAL Estimation (Gibbs Sampling)
+fprintf('MAGICAL work starts ...
+');
+[Candidate_TF_Peak_Binding_prob, Candidate_Peak_Gene_Looping_prob] = ...
+    MAGICAL_estimation(...);
+
+% 5. Output Results
+fprintf('Writing final B and L probability matrices to files...
+');
+% ... code to save results ...
+        </code></pre>
+
+        <hr>
+
+        <h2>1. Priors and Model Initialization</h2>
+        <p>
+            The script <code>MAGICAL_initialization.m</code> is responsible for setting the priors. Priors are the model's initial beliefs about the parameters before observing the detailed single-cell data. MAGICAL uses data-driven priors derived from linear models.
+        </p>
+
+        <div class="step">
+            <h3>Prior on TF Activity (<span class="variable">T</span>)</h3>
+            <p>
+                The activity of a transcription factor is assumed to be related to its own RNA expression. The prior for each TF's activity is a Normal distribution, with the mean and variance derived directly from its log2-transformed RNA counts across the different biological samples.
+            </p>
+            <pre><code>
+% From: MAGICAL_initialization.m
+
+% TF activity prior: TF RNA expression
+T_sample_mean = Candidate_TF_log2Count;
+T_sample_var = var(Candidate_TF_log2Count, 0, 2);
+
+% T_A_prior and T_R_prior are then initialized by sampling from
+% N(T_sample_mean, T_sample_var) for each cell.
+            </code></pre>
+        </div>
+
+        <div class="step">
+            <h3>Prior on TF-Peak Binding (<span class="variable">B</span>)</h3>
+            <p>
+                The prior belief about whether a TF (<span class="math">m</span>) binds to a peak (<span class="math">p</span>) is determined by the relationship between the TF's expression and the peak's accessibility. A linear model (<code_inline>fitlm</code_inline>) is fit for each potential TF-peak pair (defined by motif scans):
+            </p>
+            <p class="math">
+                PeakAccessibility_p ~ &beta;₀ + &beta;₁ * TF_Expression_m
+            </p>
+            <p>
+                The estimated coefficient (<span class="math">&beta;₁</span>) becomes the prior mean for the binding <strong>weight</strong>. The p-value of this coefficient is transformed and used as the prior <strong>probability</strong> of binding. This intuitively means that if a TF's expression is strongly correlated with a peak's accessibility across samples, the model starts with a stronger belief that the TF binds that peak.
+            </p>
+            <pre><code>
+% From: MAGICAL_initialization.m
+
+% B_prior holds the regression weights (β₁)
+% B_prob holds the prior probabilities (1 - p_value)
+[xx,yy] = find(Candidate_TF_Peak_Binding > 0); % Find potential bindings
+for i=1:length(xx)
+    mdl = fitlm(Candidate_TF_log2Count(yy(i),:)', Candidate_Peak_log2Count(xx(i),:)');
+    B_prior(xx(i), yy(i)) = table2array(mdl.Coefficients(2,1)); % Get β₁
+    B_prob(xx(i), yy(i)) = 1 - table2array(mdl.Coefficients(2,4)); % Get 1 - p_value
+end
+B_mean = B_prior;
+
+% The variance for the weight is estimated from the variance of all binding
+% weights associated with that TF.
+for m=1:M
+    B_var(m) = 1 * var(B_prior(Candidate_TF_Peak_Binding(:,m)>0, m));
+end
+            </code></pre>
+        </div>
+
+        <div class="step">
+            <h3>Prior on Peak-Gene Looping (<span class="variable">L</span>)</h3>
+            <p>
+                The logic is identical to the TF-Peak binding prior. To establish the initial belief about a peak (<span class="math">p</span>) looping to a gene (<span class="math">g</span>), a linear model is fit:
+            </p>
+            <p class="math">
+                GeneExpression_g ~ &gamma;₀ + &gamma;₁ * PeakAccessibility_p
+            </p>
+            <p>
+                The coefficient (<span class="math">&gamma;₁</span>) becomes the prior mean for the looping <strong>weight</strong>, and its p-value informs the prior <strong>probability</strong> of a loop existing.
+            </p>
+            <pre><code>
+% From: MAGICAL_initialization.m
+
+[xx,yy] = find(Candidate_Peak_Gene_looping > 0);
+for i=1:length(xx)
+    mdl = fitlm(Candidate_Peak_log2Count(xx(i),:)', Candidate_Gene_log2Count(yy(i),:)');
+    ATAC_RNA_weight_1 = table2array(mdl.Coefficients(2,1));
+    ATAC_RNA_probability_1 = 1 - table2array(mdl.Coefficients(2,4));
+    L_prior(xx(i),yy(i)) = ATAC_RNA_weight_1;
+    L_prob(xx(i),yy(i)) = ATAC_RNA_probability_1;
+end
+L_mean = L_prior;
+L_var = var(L_prior(L_prior~=0));
+            </code></pre>
+        </div>
+        <hr>
+
+        <h2>2. MAGICAL Estimation: The Gibbs Sampler</h2>
+        <p>
+            The core of the method is in <code>MAGICAL_estimation.m</code>. It uses a Gibbs sampler to iteratively refine the estimates of the latent variables <span class="variable">T</span> (TF Activity), <span class="variable">B</span> (TF-Peak Binding), and <span class="variable">L</span> (Peak-Gene Looping). The sampler works by drawing samples for each variable from its conditional posterior distribution, holding the other variables fixed.
+        </p>
+        <p>The model has two main equations:</p>
+        <ol>
+            <li><span class="math">A_s = B &times; T_s + &epsilon;_A</span> &nbsp; (scATAC-seq model)</li>
+            <li><span class="math">R_s = L&#7489; &times; (B &times; T_s) + &epsilon;_R</span> &nbsp; (scRNA-seq model)</li>
+        </ol>
+        <p>Where <span class="math">A_s</span> is peak accessibility, <span class="math">R_s</span> is gene expression, <span class="math">T_s</span> is TF activity, <span class="math">B</span> is the binding matrix, <span class="math">L</span> is the looping matrix, and <span class="math">&epsilon;</span> represents noise.</p>
+        
+        <pre><code>
+% From: MAGICAL_estimation.m
+
+for i=1:iteration_num
+    
+    %********** scATAC-seq fitting and variable sampling ****************
+          
+    %Step 1: TF activity sampling
+    [T_A, T_R, T_sample] = TF_activity_T_sampling(...);
+    
+    %Step 2: TF-peak binding weight sampling
+    B = TF_peak_binding_B_sampling(...);
+    
+    %Step 3: TF-peak binding state update
+    [B_state, B] = TF_peak_binary_binding_B_state_sampling(...);
+    
+    %Step 4: ATAC fitting residue variance control    
+    sigma_A_noise = 1/gamrnd(...);
+       
+    %********** scRNA-seq fitting and variable sampling *****************      
+    
+    %Step 5: Peak-Gene looping weight sampling
+    L = Peak_gene_looping_L_samping(...);
+    
+    %Step 6: Peak-Gene looping state update
+    [L_state, L] = Peak_gene_binary_looping_L_state_samping(...);
+    
+    %Step 7: RNA fitting residue variance control
+    sigma_R_noise = 1/gamrnd(...);
+        
+    %********** sample summary *****************
+    % Keep track of how often a binding/looping event is sampled as "on"
+    B_state_frq = B_state_frq + B_state;
+    L_state_frq = L_state_frq + L_state;
+end
+        </code></pre>
+
+        <div class="step">
+            <h3>Step 1: Sampling TF Activity (<span class="variable">T</span>)</h3>
+            <p><code>TF_activity_T_sampling.m</code>: Samples TF activity for each TF <span class="math">m</span>. Because the priors are Normal and the likelihood is Normal, the conditional posterior is also Normal. The mean and variance of this posterior are calculated based on the current binding weights (<span class="variable">B</span>), the observed peak accessibility data (<span class="variable">A_sample</span>), and the TF activity prior.</p>
+        </div>
+
+        <div class="step">
+            <h3>Steps 2 & 3: Sampling TF-Peak Binding (<span class="variable">B</span> and <span class="variable">B_state</span>)</h3>
+            <p>This is a two-part process for each potential TF-peak interaction.</p>
+            <ol>
+                <li><strong>Sampling the binary state (<code>TF_peak_binary_binding_B_state_sampling.m</code>):</strong> This is the crucial decision step. The model calculates the posterior probability of binding (<span class="math">P(B_state=1 | Data, T, L)</span>) by comparing the likelihood of the data if the TF is bound versus if it's not. This calculation incorporates both the likelihood (how well the data is explained) and the prior probability (<span class="variable">B_prob</span>). A random number is compared to this posterior probability to decide whether to sample the state as 1 (bound) or 0 (not bound).</li>
+                <li><strong>Sampling the weight (<code>TF_peak_binding_B_sampling.m</code>):</strong> If the state is sampled as 1, a binding <em>weight</em> is then sampled from its conditional posterior (another Normal distribution). If the state is 0, the weight is fixed at 0.</li>
+            </ol>
+             <pre><code>
+% From: TF_peak_binary_binding_B_state_sampling.m
+
+% Calculate posterior probability of binding (P1)
+% This compares the likelihood of the current weight (if state=1) vs a weight of 0 (if state=0)
+post_b1 = exp(-(B(p,m)*1-mean_B)^2/(2*vairance_B)) * (B_prob(p,m)+0.25) + 1e-6;
+post_b0 = exp(-(B(p,m)*0-mean_B)^2/(2*vairance_B)) * (1-B_prob(p,m)+0.25) + 1e-6;
+
+P1 = post_b1 / (post_b1 + post_b0);
+threshold_c = rand;
+
+if P1 >= threshold_c
+    % Sample state as 1 (or keep it 1)
+else
+    % Sample state as 0 (or keep it 0)
+    B(p,m) = 0;
+    B_state(p,m) = 0;
+end
+            </code></pre>
+        </div>
+
+        <div class="step">
+            <h3>Steps 5 & 6: Sampling Peak-Gene Looping (<span class="variable">L</span> and <span class="variable">L_state</span>)</h3>
+            <p>This process mirrors the sampling for <span class="variable">B</span> and <span class="variable">B_state</span>, but it operates on the scRNA-seq model.</p>
+             <ol>
+                <li><strong>Sampling the binary state (<code>Peak_gene_binary_looping_L_state_samping.m</code>):</strong> The model calculates the posterior probability of a loop existing (<span class="math">P(L_state=1 | Data, T, B)</span>) by comparing the likelihood of the observed gene expression (<span class="variable">R_sample</span>) with and without the loop. The prior probability (<span class="variable">L_prob</span>) is included. A state of 1 or 0 is then sampled based on this probability.</li>
+                <li><strong>Sampling the weight (<code>Peak_gene_looping_L_samping.m</code>):</strong> If the state is 1, a looping weight is sampled from its Normal conditional posterior. Otherwise, the weight is 0.</li>
+            </ol>
+        </div>
+
+        <h3>Final Output</h3>
+        <p>
+            After many iterations, the algorithm computes the final probabilities for TF-peak binding and peak-gene looping by calculating the frequency with which each `B_state` or `L_state` was sampled as 1. For instance, if a specific TF-peak binding state was 1 in 800 out of 1000 iterations, its final binding probability is 0.8.
+        </p>
+        <pre><code>
+% From: MAGICAL_estimation.m
+
+Candidate_TF_Peak_Binding_prob = B_state_frq / iteration_num;
+Candidate_Peak_Gene_Looping_prob = L_state_frq / iteration_num;
+        </code></pre>
+
+    </div>
+</body>
+</html>
