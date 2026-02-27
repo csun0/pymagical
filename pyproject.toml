@@ -1,12 +1,14 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
 [project]
 name = "pymagical"
-dynamic = ["version"] 
-
-# Add this section to tell hatch to look at Git
-[tool.hatch.version]
-source = "vcs"
-
+dynamic = ["version"]
 description = "A Python port of the MAGICAL hierarchical Bayesian Gibbs sampler for regulatory circuit inference."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"} # Recommended to add this
 authors = [
     { name = "C. Sun", email = "cs9095@princeton.edu" }
 ]
@@ -17,15 +19,13 @@ dependencies = [
     "statsmodels>=0.13.0",
     "pyarrow>=8.0.0",
 ]
-readme = "README.md"
-requires-python = ">=3.10"
 
 [project.scripts]
 magical = "pymagical.cli:main"
 
-[build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
+# Move ALL tool sections to the bottom
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.sdist]
 include = ["pymagical", "README.md", "LICENSE"]
