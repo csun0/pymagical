@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from .magical import run_magical
 
 def main():
@@ -10,6 +11,7 @@ def main():
     parser.add_argument("--outdir", type=str, default="outputs", help="Output directory for results")
     parser.add_argument("--prefix", type=str, default="astrocytes", help="Prefix for output filenames (default: astrocytes)")
     parser.add_argument("--dump-weights", action="store_true", help="Dump history of continuous B and L weights as .npy files")
+    parser.add_argument("--use-numba", action="store_true", help="Enable Numba JIT optimization for Gibbs sampling (faster, requires numba)")
     
     # Input File Overrides (Defaults to astrocytes demo data)
     test_dir = "/mnt/ceph/users/agebrain/anderson/snmulti_data/pymagical/test_data"
@@ -28,6 +30,10 @@ def main():
     parser.add_argument("--tad-file", type=str, default=os.path.join(test_dir, "tad_regions.txt"))
     parser.add_argument("--refseq-file", type=str, default=os.path.join(test_dir, "rhemac10_refseq.txt"))
     
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     args = parser.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -54,7 +60,8 @@ def main():
         refseq_file=args.refseq_file,
         output_file=out_file,
         iteration_num=args.iter,
-        dump_weight_history=args.dump_weights
+        dump_weight_history=args.dump_weights,
+        use_numba=args.use_numba
     )
 
 if __name__ == "__main__":

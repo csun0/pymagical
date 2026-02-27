@@ -12,6 +12,6 @@ mkdir -p logs
 mkdir -p "$OUTDIR"
 
 echo "Starting pymagical with $ITERATIONS iterations (prefix: $PREFIX)"
-uv run python -m pymagical --iter "$ITERATIONS" --outdir "$OUTDIR" --prefix "$PREFIX"
+uv run pymagical --iter "$ITERATIONS" --outdir "$OUTDIR" --prefix "$PREFIX"
 
 echo "Job completed."

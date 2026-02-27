@@ -30,14 +30,14 @@ Run the circuit inference directly from your terminal:
 
 ```bash
 # Run with default demo data (astrocytes) for 500 iterations
-uv run python main.py --iter 500 --outdir results/
+uv run pymagical --iter 500 --outdir results/
 
 # Run with custom data and dump weight history
-uv run python main.py 
-    --iter 1000 
-    --prefix my_sample
-    --rna-counts path/to/rna.txt 
-    --atac-counts path/to/atac.txt 
+uv run pymagical \
+    --iter 1000 \
+    --prefix my_sample \
+    --rna-counts path/to/rna.txt \
+    --atac-counts path/to/atac.txt \
     --dump-weights
 ```
 

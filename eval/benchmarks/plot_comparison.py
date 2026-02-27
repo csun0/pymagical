@@ -6,12 +6,11 @@ import argparse
 
 # Import custom plotting helpers
 sys.path.append('/mnt/home/csun1/scripts/global_scripts')
-from helpers.init import *
 import helpers.font as hf
 hf.set_font_family("Google Sans")
 
 def plot_comparison(py_times, ml_times, iter_num, out_img):
-    stages = ['Data Loading', 'Circuit Construction', 'Initialization (OLS)', f'Gibbs Sampling ({iter_num} iters)']
+    stages = ['Data Load', 'Circuit Build', 'Init (OLS)', f'Gibbs ({iter_num} iters)']
     
     # Validation
     if len(py_times) != 4 or len(ml_times) != 4:
@@ -21,9 +20,7 @@ def plot_comparison(py_times, ml_times, iter_num, out_img):
     x = np.arange(len(stages))
     width = 0.35
     
-    fig, axes = plt.subplots(1, 1, figsize=(8, 5), dpi=300, layout="constrained")
-    axes = np.ravel(axes)
-    ax = axes[0]
+    fig, ax = plt.subplots(1, 1, figsize=(8, 5), dpi=300, layout="constrained")
     
     rects1 = ax.bar(x - width/2, py_times, width, label='Python (pymagical)', color='#4285F4')
     rects2 = ax.bar(x + width/2, ml_times, width, label='MATLAB (Original)', color='#FBBC05')
@@ -55,7 +52,7 @@ def plot_comparison(py_times, ml_times, iter_num, out_img):
     autolabel(rects2)
     
     import seaborn as sns
-    sns.despine(trim=True, ax=ax)
+    sns.despine(ax=ax)
     
     plt.savefig(out_img)
     print(f"Saved comparison plot to {out_img}")

@@ -18,7 +18,6 @@ from pymagical.estimation import magical_estimation
 
 # Import custom plotting helpers
 sys.path.append('/mnt/home/csun1/scripts/global_scripts')
-from helpers.init import *
 import helpers.font as hf
 hf.set_font_family("Google Sans")
 

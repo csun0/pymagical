@@ -32,7 +32,7 @@ uv sync
 ### Running the Pipeline
 Run the circuit inference via the installed CLI:
 ```bash
-uv run magical --iter 500 --prefix my_experiment --outdir outputs/
+uv run pymagical --iter 500 --prefix my_experiment --outdir outputs/
 ```
 Alternatively, use the module entry point:
 ```bash
