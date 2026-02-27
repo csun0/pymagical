@@ -59,3 +59,14 @@ For `pymagical`, we implemented a dual-path IO handler (`data_loader.py`):
 - The final output string format was updated to include this context, breaking down the interaction into its component parts (e.g., `STAT5B (0.85, + [+,+])` indicating an activator that opens a peak `+` which increases gene expression `+`).
 - **Weight History Analysis:** Added a `--dump-weights` CLI flag. When enabled, the sampler outputs the complete, iteration-by-iteration history of continuous B and L weights as `.npy` matrices, allowing for downstream distribution analysis to assess the robustness of taking the mean weight across runs.
 
+## PHASE 6: HYPER-OPTIMIZATION (NUMBA)
+- **Numba JIT Acceleration:** Introduced JIT-compiled kernels for the core Gibbs sampling loops to eliminate Python interpreter overhead.
+- **Architectural Refactoring:** Implemented "Running Residuals" to reduce mathematical complexity from $O(N^3)$ to $O(N^2)$ and optimized memory layouts for C-contiguous access.
+- **Results (2000 iterations):**
+  - **L matrix Pearson correlation:** 0.9993
+  - **B matrix Pearson correlation:** 0.9953
+  - **Triad Overlap:** Python+Numba recovered **96.0%** of the triads found by MATLAB.
+  - **Runtime Performance:** The Numba-accelerated sampler completed in **72.8 seconds**, compared to 1101 seconds for NumPy and 2047 seconds for MATLAB.
+  - **Total Sampling Speedup:** **~28x faster** than MATLAB and **~15x faster** than standard Python (NumPy).
+- For a detailed breakdown of these optimizations, see [docs/optimization_tech_notes.md](optimization_tech_notes.md).
+

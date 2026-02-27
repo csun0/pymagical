@@ -23,7 +23,7 @@ function matlab_runner(iteration_num, output_label)
     Output_file_path = fullfile(output_dir, [output_label, '.txt']);
     timing_file_path = fullfile(output_dir, [output_label, '_timing_stats.txt']);
 
-    addpath('/mnt/home/csun1/scripts/aging_scripts/snmulti_scripts/pymagical/matlabmagical');
+    addpath('/mnt/home/csun1/scripts/pymagical/matlabmagical');
 
     fprintf('Starting MATLAB MAGICAL with %d iterations...\n', iteration_num);
 

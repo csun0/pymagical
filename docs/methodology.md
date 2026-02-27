@@ -1,6 +1,8 @@
 # MAGICAL Methodology and Circuit Interpretation
 
-`pymagical` is based on the MAGICAL (Multiome Accessibility Gene Integration Calling and Looping) framework described in *Chen et al., Nature Computational Science 2023*. This methodology leverages a hierarchical Bayesian approach to map regulatory circuits consisting of Transcription Factors (TFs), cis-regulatory chromatin sites (Peaks), and target Genes.
+`pymagical` is based on the MAGICAL (Multiome Accessibility Gene Integration Calling and Looping) framework described in:
+> **Chen et al., "Mapping disease regulatory circuits at cell-type resolution from single-cell multiomics data," *Nature Computational Science*, 2023.**
+> (Full manuscript available at [docs/MAGICAL.pdf](MAGICAL.pdf))
 
 ## Hierarchical Bayesian Model
 

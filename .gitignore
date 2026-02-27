@@ -3,6 +3,6 @@ __pycache__/
 *.py[cod]
 .magical_cache/
 outputs/
-logs/
-.DS_Store
+eval/benchmarks/logs/
 outputs_bench/
+.DS_Store

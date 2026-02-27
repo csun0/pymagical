@@ -10,20 +10,22 @@ This directory contains tools for verifying the statistical fidelity and perform
 *   `benchmarks/`: Performance profiling and resource scaling.
     *   `profile_run.py`: Breaks down execution time by stage (Loading, Construction, Init, Sampling).
     *   `plot_comparison.py`: Generates comparative bar charts between implementations.
-    *   `scripts/`: Generic Slurm (`.sh`) and MATLAB (`.m`) runners for launching cluster jobs.
+    *   `scripts/`: Slurm (`.sh`) and MATLAB (`.m`) runners for launching cluster jobs.
+    *   `logs/`: Centralized directory for Slurm job outputs.
 
 ## Usage Examples
 
 ### 1. Compare Fidelity and Performance
 
-After running both Python and MATLAB versions for 500 iterations, use this script to calculate correlations and speedup:
+After running both Python and MATLAB versions for 2000 iterations, use this script to calculate correlations and speedup:
 
 ```bash
-uv run python eval/tests/compare_results.py 
-    --ml-dir path/to/matlab/outputs 
-    --py-dir path/to/python/outputs 
-    --iter 500 
-    --prefix astrocytes
+uv run python eval/tests/compare_results.py \
+    --ml-dir path/to/matlab/outputs \
+    --py-dir path/to/python/outputs \
+    --iter 2000 \
+    --ml-prefix astrocytes \
+    --py-prefix astrocytes_numba
 ```
 
 ### 2. Profile Python Execution Stages
@@ -34,18 +36,24 @@ To see a granular breakdown of where time is spent in the Python pipeline:
 uv run python eval/benchmarks/profile_run.py --iter 100 --output my_profile.png
 ```
 
-### 3. Launching Cluster Jobs
+### 3. Launching Cluster Jobs (5000-Iteration Benchmarks)
 
-Use the provided Slurm wrappers to submit jobs to the queue:
+Use the optimized Slurm scripts to submit jobs to the queue:
 
 ```bash
-# Submit Python job for 1000 iterations
-sbatch eval/benchmarks/scripts/run_pymagical.sh 1000 /path/to/output astrocytes
+# Submit Numba-accelerated Python job
+sbatch eval/benchmarks/scripts/run_pymagical_numba_5000.sh
 
-# Submit MATLAB job for 1000 iterations
-sbatch eval/benchmarks/scripts/run_matlab.sh 1000 astrocytes_ml_1000
+# Submit standard NumPy Python job
+sbatch eval/benchmarks/scripts/run_pymagical_numpy_5000.sh
+
+# Submit original MATLAB job
+sbatch eval/benchmarks/scripts/run_matlab_5000.sh
 ```
 
 ## Metrics and Validation
 
-For a detailed history of the validation results (Pearson correlations, triad recovery rates, and wall-clock speedups), see [docs/decisions.md](../docs/decisions.md).
+For a detailed history of the validation results and speedups, see:
+*   [Performance Report](../docs/performance_report.md)
+*   [Optimization Technical Notes](../docs/optimization_tech_notes.md)
+*   [Design Decisions Log](../docs/decisions.md)

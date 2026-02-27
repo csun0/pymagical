@@ -147,6 +147,12 @@ def main():
     ml_base = os.path.join(args.ml_dir, f"{args.ml_prefix}_ml_{args.iter}")
     py_base = os.path.join(args.py_dir, f"{args.py_prefix}_py_{args.iter}")
     
+    # Check if we need to search deeper (for outputs_bench structure)
+    if not os.path.exists(f"{py_base}.txt"):
+        # Try looking for prefix inside subdirectory if it exists
+        if os.path.exists(os.path.join(args.py_dir, f"{args.py_prefix}_py_{args.iter}.txt")):
+             py_base = os.path.join(args.py_dir, f"{args.py_prefix}_py_{args.iter}")
+    
     compare_fidelity(
         ml_file=f"{ml_base}.txt",
         py_file=f"{py_base}.txt",
