@@ -12,13 +12,13 @@ def main():
     run_parser = subparsers.add_parser("run", help="Run MAGICAL inference (default if no command given)")
     run_parser.add_argument("--iter", type=int, default=500, help="Number of Gibbs sampling iterations (default: 500)")
     run_parser.add_argument("--outdir", type=str, default="outputs", help="Output directory for results")
-    run_parser.add_argument("--prefix", type=str, default="astrocytes", help="Prefix for output filenames (default: astrocytes)")
+    run_parser.add_argument("--prefix", type=str, default="oligodendrocytes", help="Prefix for output filenames (default: oligodendrocytes)")
     run_parser.add_argument("--dump-weights", action="store_true", help="Dump history of continuous B and L weights as .npy files")
     run_parser.add_argument("--use-numba", action="store_true", help="Enable Numba JIT optimization for Gibbs sampling (faster, requires numba)")
     
     # Input File Overrides
     test_dir = "/mnt/ceph/users/agebrain/anderson/snmulti_data/pymagical/test_data"
-    astrocytes_dir = os.path.join(test_dir, "astrocytes")
+    astrocytes_dir = os.path.join(test_dir, "oligodendrocytes")
     
     run_parser.add_argument("--cand-genes", type=str, default=os.path.join(astrocytes_dir, "sig_cr_genes.txt"))
     run_parser.add_argument("--cand-peaks", type=str, default=os.path.join(astrocytes_dir, "sig_cr_peaks.txt"))

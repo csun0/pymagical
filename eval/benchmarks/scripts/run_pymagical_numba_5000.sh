@@ -5,7 +5,7 @@
 
 ITERATIONS=5000
 OUTDIR=outputs_bench/numba_5000
-PREFIX="astrocytes_numba"
+PREFIX="oligo_numba"
 
 mkdir -p eval/benchmarks/logs
 mkdir -p "$OUTDIR"
