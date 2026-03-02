@@ -30,10 +30,24 @@ def parse_magical_output(file_path):
             tfs_raw = parts[7].strip().rstrip(',')
             
             # Extract TF details
-            # Format: TF (prob, effect [L,B])
-            tf_matches = re.findall(r'([A-Za-z0-9_-]+)\s*\(([\d\.]+),\s*([\+\-])\s*\[([\+\-]),([\+\-])\]\)', tfs_raw)
-            
-            for tf_name, tf_prob, effect, l_dir, b_dir in tf_matches:
+            # Supports both:
+            # Python: TF (prob, effect [L,B])
+            # MATLAB: TF (prob),
+            tfs_list = [t.strip() for t in tfs_raw.split(',') if t.strip()]
+            for tf_item in tfs_list:
+                # 1. Try full Python format first
+                full_match = re.match(r'([A-Za-z0-9_-]+)\s*\(([\d\.]+),\s*([\+\-])\s*\[([\+\-]),([\+\-])\]\)', tf_item)
+                if full_match:
+                    tf_name, tf_prob, effect, l_dir, b_dir = full_match.groups()
+                else:
+                    # 2. Try MATLAB format
+                    ml_match = re.match(r'([A-Za-z0-9_-]+)\s*\(([\d\.]+)\)', tf_item)
+                    if ml_match:
+                        tf_name, tf_prob = ml_match.groups()
+                        effect, l_dir, b_dir = '?', '?', '?'
+                    else:
+                        continue
+
                 data.append({
                     'Gene': gene,
                     'Gene_Chr': gene_chr,

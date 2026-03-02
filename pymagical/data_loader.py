@@ -4,25 +4,101 @@ import pandas as pd
 import numpy as np
 from scipy import sparse
 
-def _get_cache_prefix(source_files, prefix=""):
-    """Generate cache paths based on the hash of the source file paths."""
-    data_dir = os.path.dirname(os.path.abspath(source_files[0]))
+import os
+import hashlib
+import json
+import tempfile
+import pandas as pd
+import numpy as np
+from scipy import sparse
+
+def _get_source_fingerprint(source_files):
+    """Generate a fingerprint based on file paths, sizes, and modification times."""
+    fingerprint_parts = []
+    for f in sorted(source_files):
+        abs_path = os.path.abspath(f)
+        stat = os.stat(abs_path)
+        fingerprint_parts.append(f"{abs_path}|{stat.st_size}|{stat.st_mtime}")
+    
+    fingerprint_str = "||".join(fingerprint_parts)
+    return hashlib.md5(fingerprint_str.encode('utf-8')).hexdigest()
+
+def _get_cache_dir(source_file):
+    """Get or create the .magical_cache directory."""
+    data_dir = os.path.dirname(os.path.abspath(source_file))
     cache_dir = os.path.join(data_dir, ".magical_cache")
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, exist_ok=True)
-        
-    mtimes = [os.path.getmtime(f) for f in source_files]
-    max_mtime = max(mtimes)
-    
-    path_str = "|".join(source_files)
-    path_hash = hashlib.md5(path_str.encode('utf-8')).hexdigest()
-    
-    return os.path.join(cache_dir, f"{prefix}_{path_hash}"), max_mtime
+    return cache_dir
 
-def _is_cache_valid(cache_file, source_mtime):
-    if os.path.exists(cache_file):
-        return os.path.getmtime(cache_file) >= source_mtime
-    return False
+def _check_cache_integrity(cache_files, metadata_file, source_fingerprint):
+    """Check if all cache files exist, have non-zero size, and metadata matches."""
+    if not os.path.exists(metadata_file):
+        return False
+    
+    for f in cache_files:
+        if not os.path.exists(f) or os.path.getsize(f) == 0:
+            return False
+            
+    try:
+        with open(metadata_file, 'r') as f:
+            meta = json.load(f)
+        return meta.get('source_fingerprint') == source_fingerprint and meta.get('completed', False)
+    except (json.JSONDecodeError, IOError, ValueError):
+        return False
+
+def _atomic_save_metadata(metadata_file, source_fingerprint):
+    """Save metadata file atomically."""
+    meta = {
+        'source_fingerprint': source_fingerprint,
+        'completed': True,
+        'timestamp': pd.Timestamp.now().isoformat()
+    }
+    # Use a safer temp file approach
+    target_dir = os.path.dirname(metadata_file)
+    with tempfile.NamedTemporaryFile(mode='w', dir=target_dir, delete=False, suffix=".tmp") as f:
+        json.dump(meta, f)
+        tmp_path = f.name
+    
+    try:
+        os.replace(tmp_path, metadata_file)
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise e
+
+def _atomic_save_parquet(df, cache_path, **kwargs):
+    """Save a DataFrame to Parquet atomically."""
+    target_dir = os.path.dirname(cache_path)
+    with tempfile.NamedTemporaryFile(dir=target_dir, delete=False, suffix=".tmp.parquet") as f:
+        tmp_path = f.name
+    
+    try:
+        df.to_parquet(tmp_path, engine='pyarrow', index=False, **kwargs)
+        if os.path.getsize(tmp_path) == 0:
+            raise IOError(f"Failed to write data to {tmp_path} (size 0)")
+        os.replace(tmp_path, cache_path)
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise e
+
+def _atomic_save_npz(matrix, cache_path):
+    """Save a sparse matrix to NPZ atomically."""
+    target_dir = os.path.dirname(cache_path)
+    # scipy.save_npz adds .npz if not present, so we handle suffix carefully
+    with tempfile.NamedTemporaryFile(dir=target_dir, delete=False, suffix=".tmp.npz") as f:
+        tmp_path = f.name
+    
+    try:
+        sparse.save_npz(tmp_path, matrix)
+        if os.path.getsize(tmp_path) == 0:
+            raise IOError(f"Failed to write data to {tmp_path} (size 0)")
+        os.replace(tmp_path, cache_path)
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise e
 
 def parse_chr_to_num(chr_series):
     """Convert chr string (e.g. 'chr1') to number. Exclude X/Y by returning 0."""
@@ -33,109 +109,145 @@ def parse_chr_to_num(chr_series):
 
 def load_candidate_genes(filepath):
     """Load candidate gene symbols."""
-    cache_prefix, src_mtime = _get_cache_prefix([filepath], "cand_genes")
-    cache_path = f"{cache_prefix}.parquet"
+    fingerprint = _get_source_fingerprint([filepath])
+    cache_dir = _get_cache_dir(filepath)
+    cache_path = os.path.join(cache_dir, f"cand_genes_{fingerprint}.parquet")
+    meta_path = cache_path + ".meta"
     
-    if _is_cache_valid(cache_path, src_mtime):
+    if _check_cache_integrity([cache_path], meta_path, fingerprint):
         print(f"Using cached file for candidate genes: {os.path.basename(cache_path)}")
         return pd.read_parquet(cache_path)['gene_symbol'].values
         
+    print(f"Loading candidate genes from {os.path.basename(filepath)} ...")
     df = pd.read_csv(filepath, header=None, names=['gene_symbol'])
-    df.to_parquet(cache_path, engine='pyarrow', index=False)
+    _atomic_save_parquet(df, cache_path)
+    _atomic_save_metadata(meta_path, fingerprint)
     return df['gene_symbol'].values
 
 def load_candidate_peaks(filepath):
     """Load candidate peaks."""
-    cache_prefix, src_mtime = _get_cache_prefix([filepath], "cand_peaks")
-    cache_path = f"{cache_prefix}.parquet"
+    fingerprint = _get_source_fingerprint([filepath])
+    cache_dir = _get_cache_dir(filepath)
+    cache_path = os.path.join(cache_dir, f"cand_peaks_{fingerprint}.parquet")
+    meta_path = cache_path + ".meta"
     
-    if _is_cache_valid(cache_path, src_mtime):
+    if _check_cache_integrity([cache_path], meta_path, fingerprint):
         print(f"Using cached file for candidate peaks: {os.path.basename(cache_path)}")
         return pd.read_parquet(cache_path)
         
+    print(f"Loading candidate peaks from {os.path.basename(filepath)} ...")
     df = pd.read_csv(filepath, sep=r'\s+', header=None, names=['chr', 'point1', 'point2'])
     df['chr_num'] = parse_chr_to_num(df['chr'])
-    df.to_parquet(cache_path, engine='pyarrow', index=False)
+    _atomic_save_parquet(df, cache_path)
+    _atomic_save_metadata(meta_path, fingerprint)
     return df
 
 def load_scrna_data(counts_file, genes_file, meta_file):
     """Load scRNA genes, cells, and sparse count matrix."""
-    cache_prefix, src_mtime = _get_cache_prefix([counts_file, genes_file, meta_file], "scrna")
-    genes_cache = f"{cache_prefix}_genes.parquet"
-    cells_cache = f"{cache_prefix}_cells.parquet"
-    counts_cache = f"{cache_prefix}_counts.npz"
+    sources = [counts_file, genes_file, meta_file]
+    fingerprint = _get_source_fingerprint(sources)
+    cache_dir = _get_cache_dir(counts_file)
     
-    if _is_cache_valid(genes_cache, src_mtime) and _is_cache_valid(counts_cache, src_mtime):
-        print(f"Using cached files for scRNA data: {os.path.basename(cache_prefix)}_*")
+    genes_cache = os.path.join(cache_dir, f"scrna_{fingerprint}_genes.parquet")
+    cells_cache = os.path.join(cache_dir, f"scrna_{fingerprint}_cells.parquet")
+    counts_cache = os.path.join(cache_dir, f"scrna_{fingerprint}_counts.npz")
+    meta_path = os.path.join(cache_dir, f"scrna_{fingerprint}.meta")
+    
+    cache_files = [genes_cache, cells_cache, counts_cache]
+    
+    if _check_cache_integrity(cache_files, meta_path, fingerprint):
+        print(f"Using cached files for scRNA data: {os.path.basename(meta_path)}")
         genes_df = pd.read_parquet(genes_cache)
         cells_df = pd.read_parquet(cells_cache)
         count_matrix = sparse.load_npz(counts_cache)
         return genes_df, cells_df, count_matrix
         
-    genes_df = pd.read_csv(genes_file, sep=r'\s+', header=None, names=['gene_index', 'gene_symbol'])
+    print(f"Loading scRNA genes from {os.path.basename(genes_file)} ...")
+    genes_df = pd.read_csv(genes_file, sep='\t', header=None, names=['gene_index', 'gene_symbol'])
+    print(f"Loading scRNA meta from {os.path.basename(meta_file)} ...")
     cells_df = pd.read_csv(meta_file, sep='\t', header=None, 
                            names=['cell_index', 'cell_barcode', 'cell_type', 'subject_ID', 'condition'])
     
-    counts_df = pd.read_csv(counts_file, sep=r'\s+', header=None, names=['gene_index', 'cell_index', 'readcount'])
+    print(f"Loading scRNA counts from {os.path.basename(counts_file)} ...")
+    counts_df = pd.read_csv(counts_file, sep='\t', header=None, names=['gene_index', 'cell_index', 'readcount'])
     row = counts_df['gene_index'].values - 1
     col = counts_df['cell_index'].values - 1
     data = counts_df['readcount'].values
     
     count_matrix = sparse.coo_matrix((data, (row, col)), shape=(len(genes_df), len(cells_df))).tocsr()
     
-    genes_df.to_parquet(genes_cache, engine='pyarrow', index=False)
-    cells_df.to_parquet(cells_cache, engine='pyarrow', index=False)
-    sparse.save_npz(counts_cache, count_matrix)
+    _atomic_save_parquet(genes_df, genes_cache)
+    _atomic_save_parquet(cells_df, cells_cache)
+    _atomic_save_npz(count_matrix, counts_cache)
+    _atomic_save_metadata(meta_path, fingerprint)
     
     return genes_df, cells_df, count_matrix
 
 def load_scatac_data(counts_file, peaks_file, meta_file):
     """Load scATAC peaks, cells, and sparse count matrix."""
-    cache_prefix, src_mtime = _get_cache_prefix([counts_file, peaks_file, meta_file], "scatac")
-    peaks_cache = f"{cache_prefix}_peaks.parquet"
-    cells_cache = f"{cache_prefix}_cells.parquet"
-    counts_cache = f"{cache_prefix}_counts.npz"
+    sources = [counts_file, peaks_file, meta_file]
+    fingerprint = _get_source_fingerprint(sources)
+    cache_dir = _get_cache_dir(counts_file)
     
-    if _is_cache_valid(peaks_cache, src_mtime) and _is_cache_valid(counts_cache, src_mtime):
-        print(f"Using cached files for scATAC data: {os.path.basename(cache_prefix)}_*")
+    peaks_cache = os.path.join(cache_dir, f"scatac_{fingerprint}_peaks.parquet")
+    cells_cache = os.path.join(cache_dir, f"scatac_{fingerprint}_cells.parquet")
+    counts_cache = os.path.join(cache_dir, f"scatac_{fingerprint}_counts.npz")
+    meta_path = os.path.join(cache_dir, f"scatac_{fingerprint}.meta")
+    
+    cache_files = [peaks_cache, cells_cache, counts_cache]
+    
+    if _check_cache_integrity(cache_files, meta_path, fingerprint):
+        print(f"Using cached files for scATAC data: {os.path.basename(meta_path)}")
         peaks_df = pd.read_parquet(peaks_cache)
         cells_df = pd.read_parquet(cells_cache)
         count_matrix = sparse.load_npz(counts_cache)
         return peaks_df, cells_df, count_matrix
 
-    peaks_df = pd.read_csv(peaks_file, sep=r'\s+', header=None, 
+    print(f"Loading scATAC peaks from {os.path.basename(peaks_file)} ...")
+    peaks_df = pd.read_csv(peaks_file, sep='\t', header=None, 
                            names=['peak_index', 'chr', 'point1', 'point2'])
     peaks_df['chr_num'] = parse_chr_to_num(peaks_df['chr'])
     
+    print(f"Loading scATAC meta from {os.path.basename(meta_file)} ...")
     cells_df = pd.read_csv(meta_file, sep='\t', header=None, 
                            names=['cell_index', 'cell_barcode', 'cell_type', 'subject_ID', 'condition'])
     
-    counts_df = pd.read_csv(counts_file, sep=r'\s+', header=None, names=['peak_index', 'cell_index', 'readcount'])
+    print(f"Loading scATAC counts from {os.path.basename(counts_file)} ...")
+    counts_df = pd.read_csv(counts_file, sep='\t', header=None, names=['peak_index', 'cell_index', 'readcount'])
     row = counts_df['peak_index'].values - 1
     col = counts_df['cell_index'].values - 1
     data = counts_df['readcount'].values
     
     count_matrix = sparse.coo_matrix((data, (row, col)), shape=(len(peaks_df), len(cells_df))).tocsr()
     
-    peaks_df.to_parquet(peaks_cache, engine='pyarrow', index=False)
-    cells_df.to_parquet(cells_cache, engine='pyarrow', index=False)
-    sparse.save_npz(counts_cache, count_matrix)
+    _atomic_save_parquet(peaks_df, peaks_cache)
+    _atomic_save_parquet(cells_df, cells_cache)
+    _atomic_save_npz(count_matrix, counts_cache)
+    _atomic_save_metadata(meta_path, fingerprint)
     
     return peaks_df, cells_df, count_matrix
 
 def load_motif_prior(name_file, mapping_file, num_peaks):
     """Load motif names and TF-peak binding prior sparse matrix."""
-    cache_prefix, src_mtime = _get_cache_prefix([name_file, mapping_file], "motif")
-    motifs_cache = f"{cache_prefix}_motifs.parquet"
-    mapping_cache = f"{cache_prefix}_mapping.npz"
+    sources = [name_file, mapping_file]
+    fingerprint = _get_source_fingerprint(sources)
+    cache_dir = _get_cache_dir(name_file)
     
-    if _is_cache_valid(motifs_cache, src_mtime) and _is_cache_valid(mapping_cache, src_mtime):
-        print(f"Using cached files for motif prior: {os.path.basename(cache_prefix)}_*")
+    motifs_cache = os.path.join(cache_dir, f"motif_{fingerprint}_motifs.parquet")
+    mapping_cache = os.path.join(cache_dir, f"motif_{fingerprint}_mapping.npz")
+    meta_path = os.path.join(cache_dir, f"motif_{fingerprint}.meta")
+    
+    cache_files = [motifs_cache, mapping_cache]
+    
+    if _check_cache_integrity(cache_files, meta_path, fingerprint):
+        print(f"Using cached files for motif prior: {os.path.basename(meta_path)}")
         motifs_df = pd.read_parquet(motifs_cache)
         tf_peak_binding_matrix = sparse.load_npz(mapping_cache)
         return motifs_df, tf_peak_binding_matrix
         
+    print(f"Loading motif names from {os.path.basename(name_file)} ...")
     motifs_df = pd.read_csv(name_file, sep=r'\s+', header=None, names=['motif_index', 'name'])
+    print(f"Loading motif mapping from {os.path.basename(mapping_file)} ...")
     mapping_df = pd.read_csv(mapping_file, sep=r'\s+', header=None, names=['peak_index', 'motif_index', 'flag'])
     
     row = mapping_df['peak_index'].values - 1
@@ -144,36 +256,46 @@ def load_motif_prior(name_file, mapping_file, num_peaks):
     
     tf_peak_binding_matrix = sparse.coo_matrix((data, (row, col)), shape=(num_peaks, len(motifs_df))).tocsr()
     
-    motifs_df.to_parquet(motifs_cache, engine='pyarrow', index=False)
-    sparse.save_npz(mapping_cache, tf_peak_binding_matrix)
+    _atomic_save_parquet(motifs_df, motifs_cache)
+    _atomic_save_npz(tf_peak_binding_matrix, mapping_cache)
+    _atomic_save_metadata(meta_path, fingerprint)
     
     return motifs_df, tf_peak_binding_matrix
 
 def load_tad_regions(filepath):
     """Load TAD regions."""
-    cache_prefix, src_mtime = _get_cache_prefix([filepath], "tad")
-    cache_path = f"{cache_prefix}.parquet"
+    fingerprint = _get_source_fingerprint([filepath])
+    cache_dir = _get_cache_dir(filepath)
+    cache_path = os.path.join(cache_dir, f"tad_{fingerprint}.parquet")
+    meta_path = cache_path + ".meta"
     
-    if _is_cache_valid(cache_path, src_mtime):
+    if _check_cache_integrity([cache_path], meta_path, fingerprint):
         print(f"Using cached file for TAD regions: {os.path.basename(cache_path)}")
         return pd.read_parquet(cache_path)
         
+    print(f"Loading TAD regions from {os.path.basename(filepath)} ...")
     df = pd.read_csv(filepath, sep=r'\s+', header=None, names=['chr', 'left_boundary', 'right_boundary'])
     df['chr_num'] = parse_chr_to_num(df['chr'])
-    df.to_parquet(cache_path, engine='pyarrow', index=False)
+    _atomic_save_parquet(df, cache_path)
+    _atomic_save_metadata(meta_path, fingerprint)
     return df
 
 def load_refseq(filepath):
     """Load Refseq info."""
-    cache_prefix, src_mtime = _get_cache_prefix([filepath], "refseq")
-    cache_path = f"{cache_prefix}.parquet"
+    fingerprint = _get_source_fingerprint([filepath])
+    cache_dir = _get_cache_dir(filepath)
+    cache_path = os.path.join(cache_dir, f"refseq_{fingerprint}.parquet")
+    meta_path = cache_path + ".meta"
     
-    if _is_cache_valid(cache_path, src_mtime):
+    if _check_cache_integrity([cache_path], meta_path, fingerprint):
         print(f"Using cached file for Refseq: {os.path.basename(cache_path)}")
         return pd.read_parquet(cache_path)
         
-    df = pd.read_csv(filepath, sep=r'\s+', header=0, 
+    print(f"Loading Refseq info from {os.path.basename(filepath)} ...")
+    df = pd.read_csv(filepath, sep=r'\s+', header=None, 
                      names=['chr', 'strand', 'start', 'end', 'gene_name'])
     df['chr_num'] = parse_chr_to_num(df['chr'])
-    df.to_parquet(cache_path, engine='pyarrow', index=False)
+    _atomic_save_parquet(df, cache_path)
+    _atomic_save_metadata(meta_path, fingerprint)
     return df
+

@@ -1,10 +1,11 @@
-function matlab_runner(iteration_num, output_label)
-    if nargin < 1; iteration_num = 500; end
-    if nargin < 2; output_label = sprintf('astrocytes_ml_%d', iteration_num); end
+function matlab_runner(dataset_name, iteration_num, output_label)
+    if nargin < 1; dataset_name = 'astrocytes'; end
+    if nargin < 2; iteration_num = 500; end
+    if nargin < 3; output_label = sprintf('%s_ml_%d', dataset_name, iteration_num); end
 
-    test_dir = '/mnt/ceph/users/agebrain/anderson/snmulti_data/pymagical/test_data';
-    ct_dir = fullfile(test_dir, 'astrocytes');
-    output_dir = '/mnt/ceph/users/agebrain/anderson/snmulti_data/pymagical/outputs';
+    test_dir = '/mnt/home/agebrain/ceph/anderson/snmulti_data/processed/magical/inputs';
+    ct_dir = fullfile(test_dir, dataset_name);
+    output_dir = 'outputs_bench/matlab';
     if ~isfolder(output_dir); mkdir(output_dir); end
 
     Candidate_gene_file_path = fullfile(ct_dir, "sig_cr_genes.txt");
@@ -23,7 +24,7 @@ function matlab_runner(iteration_num, output_label)
     Output_file_path = fullfile(output_dir, [output_label, '.txt']);
     timing_file_path = fullfile(output_dir, [output_label, '_timing_stats.txt']);
 
-    addpath('/mnt/home/csun1/scripts/pymagical/matlabmagical');
+    addpath(fullfile(pwd, 'matlabmagical'));
 
     fprintf('Starting MATLAB MAGICAL with %d iterations...\n', iteration_num);
 

@@ -11,5 +11,5 @@ mkdir -p eval/benchmarks/logs
 mkdir -p "$OUTDIR"
 
 echo "Starting pymagical (NumPy) with $ITERATIONS iterations"
-uv run pymagical --iter "$ITERATIONS" --outdir "$OUTDIR" --prefix "$PREFIX"
+uv run pymagical --main-dir /mnt/ceph/users/agebrain/anderson/snmulti_data/pymagical/test_data/ --cell-dir oligodendrocytes --iter "$ITERATIONS" --outdir "$OUTDIR" --prefix "$PREFIX"
 echo "Job completed."
