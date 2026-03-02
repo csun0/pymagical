@@ -3,9 +3,6 @@ import numpy as np
 import re
 import os
 import json
-import plotly.express as px
-import plotly.graph_objects as go
-from jinja2 import Template
 
 def parse_magical_output(file_path):
     """Parse the standard pymagical/MAGICAL tab-delimited output file."""
@@ -68,6 +65,15 @@ def parse_magical_output(file_path):
 
 def generate_report(input_file, output_html):
     """Generate a stylized HTML report from MAGICAL results."""
+    try:
+        import plotly.express as px
+        import plotly.graph_objects as go
+        from jinja2 import Template
+    except ImportError:
+        print("Error: The 'viz' dependencies (plotly, jinja2) are not installed.")
+        print("Please install them using: pip install pymagical[viz]")
+        return
+
     df = parse_magical_output(input_file)
     
     if df.empty:
@@ -139,8 +145,6 @@ def generate_report(input_file, output_html):
     fig_bubble.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
 
     # Convert plots to JSON
-    # Use engine='json' to ensure standard JSON instead of base64 binary blocks (bdata) 
-    # which Plotly 6.0 uses but older JS versions may fail to parse.
     plots_json = {
         'tf_bar': fig_tf.to_json(engine='json'),
         'score_dist': fig_dist.to_json(engine='json'),

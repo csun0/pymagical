@@ -1,50 +1,46 @@
 # pymagical
 
-`pymagical` is a high-performance Python port of the **MAGICAL** (Multiome Accessibility Gene Integration Calling and Looping) algorithm. It provides an automated pipeline for inferring functional regulatory circuits—triads of Transcription Factors (TFs), cis-regulatory elements (Peaks), and target Genes—from paired single-cell RNA-seq and ATAC-seq data.
+`pymagical` is a high-performance Python port of the **MAGICAL** (Multiome Accessibility Gene Integration Calling and Looping) algorithm. It provides a method for inferring functional regulatory circuits—triads of Transcription Factors (TFs), cis-regulatory elements (Peaks), and target Genes—from single-cell RNA-seq and ATAC-seq data.
 
 The methodology is based on the framework described in:
 > **Chen et al., "Mapping disease regulatory circuits at cell-type resolution from single-cell multiomics data," *Nature Computational Science*, 2023.**
-> (Available in this repo at [docs/MAGICAL.pdf](docs/MAGICAL.pdf))
+> (Available [here](https://www.nature.com/articles/s43588-023-00476-5))
 
 ## Key Features
 
 *   **Numba-Accelerated Sampling:** Optional JIT-compiled kernels provide a **~28x speedup** in Gibbs sampling compared to the original MATLAB implementation.
 *   **Intelligent IO Caching:** Automatically caches large sparse matrices and genomic metadata into PyArrow-backed Parquet and NumPy formats for near-instant subsequent loads (**15x faster** than MATLAB).
 *   **Biological Directionality:** Unlike the original version, `pymagical` automatically classifies inferred circuits as **activators (+)** or **repressors (-)** by analyzing continuous regression weights.
-*   **HPC Ready:** Built-in support for high-memory Slurm environments, centralized logging, and detailed weight-history dumping.
 
 ## Installation
 
-This project uses `uv` for environment management.
+The recommended way to install `pymagical` is via [PyPI](https://pypi.org/project/pymagical/):
 
 ```bash
-# Clone the repository
-git clone <repo-url>
-cd pymagical
+pip install pymagical
+```
 
-# Sync the environment
-uv sync
+For interactive HTML reports and visualization features, install the `viz` extra:
+
+```bash
+pip install "pymagical[viz]"
 ```
 
 ## Quick Start
 
 ### 1. Command Line Usage
 
-Run the circuit inference directly from your terminal. Use `--use-numba` for maximum performance:
+Once installed, run the circuit inference directly from your terminal. Use `--use-numba` for maximum performance:
 
 ```bash
-# Run with default demo data (astrocytes) for 500 iterations using Numba
-uv run pymagical --iter 500 --use-numba --outdir results/
+# Run with default data for 500 iterations using Numba
+pymagical run --main-dir path/to/data --cell-dir astrocytes --iter 500 --use-numba --outdir results/
 
-# Run with custom data and dump weight history
-uv run pymagical \
-    --iter 2000 \
-    --use-numba \
-    --prefix my_sample \
-    --rna-counts path/to/rna.txt \
-    --atac-counts path/to/atac.txt \
-    --dump-weights
+# Generate an interactive HTML visualization report (requires [viz] extra)
+pymagical viz results/magical_py_500.txt
 ```
+
+Run `pymagical --help` to see all available flags and subcommands.
 
 ### 2. Programmatic Usage
 

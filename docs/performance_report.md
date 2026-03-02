@@ -15,7 +15,7 @@ To enable large-scale circuit discovery without aggressive gene/peak subsetting,
 ### Architectural Optimizations:
 *   **JIT-Compiled Kernels:** Heavily nested Gibbs sampling loops—previously limited by Python's interpreter overhead—were moved to specialized kernels in `estimation_kernels.py`. These kernels are compiled to machine code at runtime.
 *   **Memory Layout Alignment:** Optimized the data flow by transposing key matrices (Weights, States, and Samples) to ensure **C-contiguous row-major access**. This maximized CPU cache hits and eliminated `NumbaPerformanceWarning` bottlenecks related to non-contiguous slicing.
-*   **Running Residuals:** Refactored the sampler to maintain a "running residual" matrix. By updating only the affected components of the residual during coordinate-wise Gibbs steps, we eliminated redundant $O(M 	imes P 	imes S)$ matrix-vector multiplications.
+*   **Running Residuals:** Refactored the sampler to maintain a "running residual" matrix. By updating only the affected components of the residual during coordinate-wise Gibbs steps, we eliminated redundant $O(M \times P \times S)$ matrix-vector multiplications.
 *   **Parallelization:** Utilized `numba.prange` to parallelize the sampling of independent peak and gene states across multiple CPU cores.
 
 ## 3. Comparative Benchmarks (2000 Iterations)

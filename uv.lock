@@ -1124,12 +1124,10 @@ wheels = [
 name = "pymagical"
 source = { editable = "." }
 dependencies = [
-    { name = "jinja2" },
     { name = "numba" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pandas" },
-    { name = "plotly" },
     { name = "pyarrow" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -1142,22 +1140,26 @@ dev = [
     { name = "pyfonts" },
     { name = "seaborn" },
 ]
+viz = [
+    { name = "jinja2" },
+    { name = "plotly" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "jinja2", marker = "extra == 'viz'", specifier = ">=3.1.6" },
     { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3.10.8" },
     { name = "numba", specifier = ">=0.64.0" },
     { name = "numpy", specifier = ">=1.22.0" },
     { name = "pandas", specifier = ">=1.4.0" },
-    { name = "plotly", specifier = ">=6.5.2" },
+    { name = "plotly", marker = "extra == 'viz'", specifier = ">=6.5.2" },
     { name = "pyarrow", specifier = ">=8.0.0" },
     { name = "pyfonts", marker = "extra == 'dev'", specifier = ">=1.2.0" },
     { name = "scipy", specifier = ">=1.8.0" },
     { name = "seaborn", marker = "extra == 'dev'", specifier = ">=0.13.2" },
     { name = "statsmodels", specifier = ">=0.13.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "viz"]
 
 [[package]]
 name = "pyparsing"

@@ -30,14 +30,14 @@ We utilized **Numba**, a Just-In-Time (JIT) compiler that translates a subset of
 In the standard implementation, calculating the conditional mean for a single variable update requires computing a full matrix-vector product to find the "residual" (the difference between observed data and the model's current prediction).
 
 ### B. Implementation and Logic
-A standard Gibbs update for a weight $b_{p,m}$ requires the residual $R_p = A_p - \sum_{k 
-eq m} b_{p,k} T_k$. 
-Computing this directly at every step is $O(M 	imes S)$ for one TF, or $O(M 	imes P 	imes S)$ for a full sweep of the binding matrix.
+A standard Gibbs update for a weight $b_{p,m}$ requires the residual $R_p = A_p - \sum_{k \neq m} b_{p,k} T_k$. 
+Computing this directly at every step is $O(M \times S)$ for one TF, or $O(M \times P \times S)$ for a full sweep of the binding matrix.
 
 **The "Running Residual" approach** maintains the full residual matrix $R$ in memory ($R = A - BT$). When a single element $b_{p,m}$ is updated to a new value $b'_{p,m}$:
 1.  The change $\Delta = b_{p,m} - b'_{p,m}$ is calculated.
 2.  The residual for that specific peak is updated: $R_p \leftarrow R_p + \Delta \cdot T_m$.
 3.  The next step uses this updated $R$ immediately.
+
 
 This reduces the complexity of an update from a full matrix product to a simple vector addition, effectively removing one dimension ($M$ or $P$) from the computational cost of every iteration.
 
@@ -56,6 +56,6 @@ This reduces the complexity of an update from a full matrix product to a simple 
 | **NumPy Transition** | ~2x Speedup | BLAS/LAPACK Vectorization |
 | **Parquet Caching** | ~8x IO Speedup | Columnar Binary Storage |
 | **Numba JIT** | ~15x Sampling Speedup | LLVM Machine Code Generation |
-| **Running Residuals**| ~2x Sampling Speedup | Complexity Reduction ($O(N^3) 	o O(N^2)$) |
+| **Running Residuals**| ~2x Sampling Speedup | Complexity Reduction ($O(N^3) \to O(N^2)$) |
 
-**Total Cumulative Speedup (MATLAB $	o$ Numba): ~28x**
+**Total Cumulative Speedup (MATLAB $\to$ Numba): ~28x**

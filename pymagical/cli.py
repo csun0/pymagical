@@ -138,10 +138,15 @@ def main():
         )
         
     elif args.command == "viz":
-        # Defer imports
-        from .viz import generate_report
-        output = args.output if args.output else args.input.replace(".txt", ".html")
-        generate_report(args.input, output)
+        try:
+            # Defer imports
+            from .viz import generate_report
+            output = args.output if args.output else args.input.replace(".txt", ".html")
+            generate_report(args.input, output)
+        except ImportError:
+            print("Error: The 'viz' dependencies (plotly, jinja2) are not installed.")
+            print("Please install them using: pip install pymagical[viz]")
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

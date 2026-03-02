@@ -4,6 +4,17 @@
 > **Chen et al., "Mapping disease regulatory circuits at cell-type resolution from single-cell multiomics data," *Nature Computational Science*, 2023.**
 > (Full manuscript available at [docs/MAGICAL.pdf](MAGICAL.pdf))
 
+## Candidate Circuit Construction
+
+Before the Bayesian estimation begins, MAGICAL constructs a set of candidate regulatory circuits based on differential analysis and genomic localization:
+
+1.  **Differential Analysis:** 
+    *   **DAS:** Differentially Accessible Sites (peaks) are identified between conditions (e.g., disease vs. control) for each cell type.
+    *   **DEG:** Differentially Expressed Genes are identified for the same cell types and conditions.
+2.  **TF Motif Mapping:** TFs are associated with candidate peaks (DAS) by searching for known TF motifs within the peak sequences.
+3.  **TAD-Based Linking:** Candidate peaks (DAS) are linked to candidate genes (DEG) if they reside within the same **Topologically Associated Domain (TAD)**.
+4.  **Circuit Assembly:** A candidate circuit is formed by a (TF, Peak, Gene) triad where the TF has a motif in the peak and the peak is in the same TAD as the gene's Transcription Start Site (TSS).
+
 ## Hierarchical Bayesian Model
 
 MAGICAL models the coordinated variation in chromatin accessibility and gene expression across conditions and samples. It introduces hidden variables to explicitly model signal and noise in both data types.
@@ -62,4 +73,4 @@ $$\text{Overall Effect Sign} = \text{sign}(Average(B) \times Average(L))$$
 *   **B_dir:** Direction of TF $\to$ Peak linkage weight.
 
 *Example:* `KLF5 (0.90, - [-,+])`
-This indicates a 90% confidence circuit where KLF5 opens the peak (`B_dir = +`), but the peak's accessibility is negatively correlated with the target gene's expression (`L_dir = -`), resulting in overall repression.
+This indicates a 90% confidence circuit where KLF5 opens the peak ($B_{dir} = +$), but the peak's accessibility is negatively correlated with the target gene's expression ($L_{dir} = -$), resulting in overall repression.
