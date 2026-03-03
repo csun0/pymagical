@@ -83,3 +83,17 @@ The `eval/` directory contains tools for verifying the Python implementation aga
 *   `eval/tests/compare_results.py`: Compare statistical fidelity and triad overlap.
 *   `eval/benchmarks/profile_run.py`: Profile stage-by-stage execution runtime.
 *   `eval/benchmarks/scripts/`: Slurm submission scripts for large-scale benchmarks.
+
+## Citation
+If you use **Mahi** in your research, please cite:
+
+```bibtex
+@article{chen_mapping_2023,
+	title = {Mapping disease regulatory circuits at cell-type resolution from single-cell multiomics data},
+	author = {Chen, Xi and Wang, Yuan and Cappuccio, Antonio and Cheng, Wan-Sze and Zamojski, Frederique Ruf and Nair, Venugopalan D. and Miller, Clare M. and Rubenstein, Aliza B. and Nudelman, German and Tadych, Alicja and Theesfeld, Chandra L. and Vornholt, Alexandria and George, Mary-Catherine and Ruffin, Felicia and Dagher, Michael and Chawla, Daniel G. and Soares-Schanoski, Alessandra and Spurbeck, Rachel R. and Ndhlovu, Lishomwa C. and Sebra, Robert and Kleinstein, Steven H. and Letizia, Andrew G. and Ramos, Irene and Fowler, Vance G. and Woods, Christopher W. and Zaslavsky, Elena and Troyanskaya, Olga G. and Sealfon, Stuart C.},
+	journal = {Nature Computational Science},
+	year = {2023},
+	month = jul,
+	doi = {10.1038/s43588-023-00476-5},
+	url = {https://www.nature.com/articles/s43588-023-00476-5},
+}
