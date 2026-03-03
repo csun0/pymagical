@@ -65,11 +65,21 @@ def construct_candidate_circuits_with_tad(
     
     # --- 2. Peak-gene looping ---
     # Intersect candidate genes with Refseq
-    refseq_dedup = refseq.drop_duplicates(subset=['gene_name'])
-    cand_genes_df = pd.DataFrame({'gene_symbol': cand_genes})
-    merged_genes = pd.merge(cand_genes_df, refseq_dedup, left_on='gene_symbol', right_on='gene_name', how='inner')
+    # Use MATLAB-style logic: for each gene name, use min(start) for + strand or max(end) for - strand
+    # across all possible transcripts to capture the outermost TSS.
+    refseq_extreme = refseq.groupby(['gene_name', 'strand', 'chr_num']).agg({
+        'start': 'min',
+        'end': 'max'
+    }).reset_index()
     
-    # Calculate TSS
+    # In case a gene has multiple entries with different strands/chrs, we follow MATLAB's 
+    # 'pick first chr/strand but aggregate coordinates' behavior by deduping on gene_name.
+    refseq_extreme = refseq_extreme.drop_duplicates(subset=['gene_name'])
+    
+    cand_genes_df = pd.DataFrame({'gene_symbol': cand_genes})
+    merged_genes = pd.merge(cand_genes_df, refseq_extreme, left_on='gene_symbol', right_on='gene_name', how='inner')
+    
+    # Calculate TSS based on the strand-specific extreme boundary
     merged_genes['gene_TSS'] = np.where(merged_genes['strand'] == '+', merged_genes['start'], merged_genes['end'])
     curr_cand_genes = merged_genes['gene_symbol'].values
     gene_tss = merged_genes[['chr_num', 'gene_TSS']].values

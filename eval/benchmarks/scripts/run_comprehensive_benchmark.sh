@@ -2,7 +2,6 @@
 #SBATCH --mem=256G
 #SBATCH --cpus-per-task=16
 #SBATCH --output=eval/benchmarks/logs/bench_%A_%a.out
-#SBATCH --error=eval/benchmarks/logs/bench_%A_%a.err
 #SBATCH --job-name=magical_bench
 #SBATCH --array=0-104
 
@@ -39,13 +38,13 @@ if [ "$IMPL" == "matlab" ]; then
 elif [ "$IMPL" == "numpy" ]; then
     OUTDIR="outputs_bench/numpy"
     mkdir -p "$OUTDIR"
-    PREFIX="${DATASET}_py_${ITER}"
+    PREFIX="${DATASET}"
     echo "Starting NumPy..."
     uv run pymagical --main-dir "$MAIN_DIR" --cell-dir "$DATASET" --iter "$ITER" --outdir "$OUTDIR" --prefix "$PREFIX"
 elif [ "$IMPL" == "numba" ]; then
     OUTDIR="outputs_bench/numba"
     mkdir -p "$OUTDIR"
-    PREFIX="${DATASET}_py_${ITER}"
+    PREFIX="${DATASET}"
     echo "Starting Numba..."
     uv run pymagical --main-dir "$MAIN_DIR" --cell-dir "$DATASET" --iter "$ITER" --use-numba --outdir "$OUTDIR" --prefix "$PREFIX"
 fi
