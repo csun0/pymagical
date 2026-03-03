@@ -30,19 +30,19 @@ MAIN_DIR="/mnt/home/agebrain/ceph/anderson/snmulti_data/processed/magical/inputs
 mkdir -p eval/benchmarks/logs
 
 if [ "$IMPL" == "matlab" ]; then
-    OUTDIR="outputs_bench/matlab"
+    OUTDIR="eval/benchmarks/outputs/matlab"
     mkdir -p "$OUTDIR"
     LABEL="${DATASET}_ml_${ITER}"
     echo "Starting MATLAB..."
     matlab -batch "addpath('eval/benchmarks/scripts'); matlab_runner('$DATASET', $ITER, '$LABEL')"
 elif [ "$IMPL" == "numpy" ]; then
-    OUTDIR="outputs_bench/numpy"
+    OUTDIR="eval/benchmarks/outputs/numpy"
     mkdir -p "$OUTDIR"
     PREFIX="${DATASET}"
     echo "Starting NumPy..."
     uv run pymagical --main-dir "$MAIN_DIR" --cell-dir "$DATASET" --iter "$ITER" --outdir "$OUTDIR" --prefix "$PREFIX"
 elif [ "$IMPL" == "numba" ]; then
-    OUTDIR="outputs_bench/numba"
+    OUTDIR="eval/benchmarks/outputs/numba"
     mkdir -p "$OUTDIR"
     PREFIX="${DATASET}"
     echo "Starting Numba..."

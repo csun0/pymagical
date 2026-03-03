@@ -35,12 +35,11 @@ dev = [
 [project.scripts]
 pymagical = "pymagical.cli:main"
 
-# Move ALL tool sections to the bottom
 [tool.hatch.version]
 source = "vcs"
 
 [tool.hatch.build.targets.sdist]
-include = ["pymagical", "README.md", "LICENSE"]
+include = ["src/pymagical", "README.md", "LICENSE"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["pymagical"]
+packages = ["src/pymagical"]

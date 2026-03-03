@@ -20,10 +20,14 @@ except ImportError:
     hf = DummyFont()
 
 def main():
-    # Load data
-    perf_df = pd.read_csv("benchmark_performance.csv")
-    conv_df = pd.read_csv("benchmark_convergence.csv")
-    fid_df = pd.read_csv("benchmark_fidelity.csv")
+    # Load data from the new organized directory
+    data_dir = "eval/benchmarks/data"
+    plot_dir = "eval/benchmarks/plots"
+    os.makedirs(plot_dir, exist_ok=True)
+
+    perf_df = pd.read_csv(os.path.join(data_dir, "benchmark_performance.csv"))
+    conv_df = pd.read_csv(os.path.join(data_dir, "benchmark_convergence.csv"))
+    fid_df = pd.read_csv(os.path.join(data_dir, "benchmark_fidelity.csv"))
 
     datasets = sorted([ds for ds in perf_df["Dataset"].unique() if ds != "endothelial"])
     impl_map = {"matlab": "MATLAB", "numpy": "NumPy", "numba": "Numba"}
@@ -35,7 +39,7 @@ def main():
 
     for i, ds in enumerate(datasets):
         ax = axes_flat1[i]
-        df_ds = perf_df[perf_df["Dataset"] == ds].copy()
+        df_ds = perf_df.loc[perf_df["Dataset"] == ds].copy()
         df_ds["Implementation"] = df_ds["Implementation"].map(impl_map)
         
         sns.lineplot(data=df_ds, x="Iterations", y="Gibbs_Time", hue="Implementation", 
@@ -70,10 +74,10 @@ def main():
                 fontproperties=hf.mf, x=0, y=1, ha='left', va='top')
 
     sns.despine()
-    fig1.savefig("speed_benchmark_all.png")
-    print("Saved speed_benchmark_all.png")
+    fig1.savefig(os.path.join(plot_dir, "speed_benchmark_all.png"))
+    print(f"Saved {os.path.join(plot_dir, 'speed_benchmark_all.png')}")
 
-    # --- Convergence Plots Helper (Within-Method) ---
+    # --- Convergence Plots Helper ---
     iter_pair_map = {"100_vs_500": 500, "500_vs_1000": 1000, "1000_vs_2000": 2000, "2000_vs_5000": 5000}
     
     def plot_metric(df, col_name, x_col, title, filename, y_label, y_lim, palette, target_handles=None, target_labels=None):
@@ -108,8 +112,8 @@ def main():
         fig.legend(h, l, loc='upper right', bbox_to_anchor=(1,1), ncol=len(l), prop=hf.sf, borderaxespad=0)
         fig.suptitle(title, fontproperties=hf.mf, x=0, y=1, ha='left', va='top')
         sns.despine()
-        fig.savefig(filename)
-        print(f"Saved {filename}")
+        fig.savefig(os.path.join(plot_dir, filename))
+        print(f"Saved {os.path.join(plot_dir, filename)}")
 
     # 1. Within-Method Convergence
     plot_metric(conv_df, "Jaccard_Converge", "Higher_Iter", "Circuit Stability (N vs N-1)", 

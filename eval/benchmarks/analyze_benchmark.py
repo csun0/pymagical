@@ -84,8 +84,8 @@ def load_timing(filepath):
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze magical benchmarks.")
-    parser.add_argument("--bench-dir", type=str, default="outputs_bench", help="Root directory for benchmark outputs")
-    parser.add_argument("--out-prefix", type=str, default="benchmark_", help="Output prefix for CSV files")
+    parser.add_argument("--bench-dir", type=str, default="eval/benchmarks/outputs", help="Root directory for benchmark outputs")
+    parser.add_argument("--out-prefix", type=str, default="eval/benchmarks/data/benchmark_", help="Output prefix for CSV files")
     args = parser.parse_args()
 
     datasets = ["astrocytes", "endothelial", "excitatory_neurons", "inhibitory_neurons", "microglia", "oligodendrocytes", "opcs"]

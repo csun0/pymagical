@@ -26,7 +26,8 @@ def parse_triads(filepath):
     return pd.DataFrame(data)
 
 def main():
-    results_dir = "outputs_bench/numba"
+    results_dir = "eval/benchmarks/outputs/numba"
+    rank_root = Path("eval/analysis/data/gsea_ranks")
     datasets = ["astrocytes", "excitatory_neurons", "inhibitory_neurons", "microglia", "oligodendrocytes", "opcs"]
     
     for ds in datasets:
@@ -46,11 +47,10 @@ def main():
         print(top_tfs)
 
         # 4: GSEA Ranks
-        rank_dir = Path("eval/analysis/gsea_ranks") / ds
+        rank_dir = rank_root / ds
         rank_dir.mkdir(parents=True, exist_ok=True)
         for tf in top_tfs.index:
             tf_df = df[df['TF'] == tf]
-            # Regulatory Potency Score: sum(Prob * Effect) per gene
             gene_ranks = tf_df.groupby('Gene').apply(lambda x: (x['Combined_Prob'] * x['Effect']).sum())
             gene_ranks.sort_values(ascending=False).to_csv(rank_dir / f"{tf}.rnk", sep='	', header=False)
 

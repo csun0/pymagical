@@ -5,7 +5,7 @@ function matlab_runner(dataset_name, iteration_num, output_label)
 
     test_dir = '/mnt/home/agebrain/ceph/anderson/snmulti_data/processed/magical/inputs';
     ct_dir = fullfile(test_dir, dataset_name);
-    output_dir = 'outputs_bench/matlab';
+    output_dir = 'eval/benchmarks/outputs/matlab';
     if ~isfolder(output_dir); mkdir(output_dir); end
 
     Candidate_gene_file_path = fullfile(ct_dir, "sig_cr_genes.txt");
@@ -24,7 +24,7 @@ function matlab_runner(dataset_name, iteration_num, output_label)
     Output_file_path = fullfile(output_dir, [output_label, '.txt']);
     timing_file_path = fullfile(output_dir, [output_label, '_timing_stats.txt']);
 
-    addpath(fullfile(pwd, 'matlabmagical'));
+    addpath(fullfile(pwd, 'src/matlabmagical'));
 
     fprintf('Starting MATLAB MAGICAL with %d iterations...\n', iteration_num);
 

@@ -41,6 +41,8 @@ The weights $B_{pm}$ and $L_{gp}$ are sampled from zero-mean Gaussian distributi
 *   **Positive Weight:** Indicates a positive correlation (e.g., TF opens the peak, or open peak increases gene expression).
 *   **Negative Weight:** Indicates a negative correlation (e.g., TF closes the peak, or open peak decreases gene expression).
 
+**Note on Directionality:** The original MAGICAL implementation does not explicitly report these signs as "activators" or "repressors." This is likely due to the **Sign Identifiability Problem** common in latent variable models (where $A = B \times T$ and $A = (-B) \times (-T)$ are mathematically equivalent), which can occasionally lead to "sign flipping" during long MCMC chains. `pymagical` reports these directions as an extension, anchored by the initial OLS estimates, but users should interpret directionality for marginal circuits (prob $\approx 0.7$) with caution.
+
 ### 2. Binary States and Sampling Frequency
 To account for the uncertainty of whether a regulatory link actually exists, the model uses binary indicator variables ($B_{state}$ and $L_{state}$). In each iteration, a state is drawn (0 or 1) based on the posterior probability. 
 
