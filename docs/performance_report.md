@@ -19,11 +19,11 @@ To enable large-scale circuit discovery without aggressive gene/peak subsetting,
 *   **Parallelization:** Utilized `numba.prange` to parallelize the sampling of independent peak and gene states across multiple CPU cores.
 
 ## 3. Comparative Benchmarks (2000 Iterations)
-Empirical testing on the astrocyte demo dataset (105 TFs, 525 peaks, 384 genes) shows the following cumulative improvements:
+Empirical testing across 7 datasets shows the following cumulative improvements:
 
-*   **MATLAB (Original):** ~36 minutes
-*   **pymagical (Standard):** ~19 minutes
-*   **pymagical (Numba Accelerated):** **~1.3 minutes**
+*   **MATLAB (Original):** ~47 minutes (Average)
+*   **pymagical (Standard):** ~18 minutes (Average)
+*   **pymagical (Numba Accelerated):** **~1.5 minutes (Average)**
 
 ### Conclusion
-The transition from MATLAB to Numba-accelerated Python has transformed MAGICAL from a compute-intensive HPC task into a highly responsive tool. This **~28x total speedup in sampling** allows researchers to identify regulatory circuits with significantly higher resolution or across larger genomic regions within the same time and resource budget.
+The transition from MATLAB to Numba-accelerated Python has transformed MAGICAL from a compute-intensive HPC task into a highly responsive tool. This **~30x total speedup in sampling** allows researchers to identify regulatory circuits with significantly higher resolution or across larger genomic regions within the same time and resource budget.

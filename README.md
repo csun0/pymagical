@@ -8,8 +8,8 @@ The methodology is based on the framework described in:
 
 ## Key Features
 
-*   **Numba-Accelerated Sampling:** Optional JIT-compiled kernels provide a **~28x speedup** in Gibbs sampling compared to the original MATLAB implementation.
-*   **Intelligent IO Caching:** Automatically caches large sparse matrices and genomic metadata into PyArrow-backed Parquet and NumPy formats for near-instant subsequent loads (**15x faster** than MATLAB).
+*   **Numba-Accelerated Sampling:** Optional JIT-compiled kernels provide a **~30x speedup** in Gibbs sampling compared to the original MATLAB implementation (averaged across large-scale benchmarks).
+*   **IO Caching:** Automatically caches large sparse matrices and genomic metadata into PyArrow-backed Parquet and NumPy formats for near-instant subsequent loads (**~15x faster** than MATLAB).
 *   **Biological Directionality:** Unlike the original version, `pymagical` automatically classifies inferred circuits as **activators (+)** or **repressors (-)** by analyzing continuous regression weights.
 
 ## Installation
@@ -57,35 +57,8 @@ run_magical(
 )
 ```
 
-## Output Notation
-
-The final triad list includes a biological effect annotation for every identified TF:
-
-`TF_Name (Confidence_Probability, Overall_Effect [L_dir, B_dir])`
-
-*   **Overall Effect:** `+` (Activator) or `-` (Repressor).
-*   **L_dir (Looping):** Direction of Peak-to-Gene effect.
-*   **B_dir (Binding):** Direction of TF-to-Peak effect.
-
-*Example:* `STAT5B (0.85, + [+,+])` indicates an 85% confident activator that opens a peak which subsequently increases gene expression.
-
-## Documentation
-
-*   [Methodology and Notation Details](docs/methodology.md)
-*   [Design Decisions and Benchmarks](docs/decisions.md)
-*   [Performance Optimization Technical Notes](docs/optimization_tech_notes.md)
-*   [Executive Performance Report](docs/performance_report.md)
-
-## Evaluation and Comparison
-
-The `eval/` directory contains tools for verifying the Python implementation against the original MATLAB baseline.
-
-*   `eval/tests/compare_results.py`: Compare statistical fidelity and triad overlap.
-*   `eval/benchmarks/profile_run.py`: Profile stage-by-stage execution runtime.
-*   `eval/benchmarks/scripts/`: Slurm submission scripts for large-scale benchmarks.
-
 ## Citation
-If you use **Mahi** in your research, please cite:
+If you use **MAGICAL** in your research, please cite:
 
 ```bibtex
 @article{chen_mapping_2023,

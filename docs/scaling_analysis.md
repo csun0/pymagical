@@ -28,8 +28,8 @@ The standard workflow uses DAS/DEG filtering and TAD boundaries. Below is a comp
 | **Genes ($G$)** | ~400 | ~20,000 | ~20,000 |
 | **Samples ($S$)** | 20 | 20 | 20 |
 | **Ops per Iter** | $4 \times 10^6$ | $2 \times 10^8$ (50x) | $4 \times 10^{10}$ (10,000x) |
-| **Numba Runtime** | **~1.3 minutes** | **~65 minutes** | **~9 days** |
-| **MATLAB Runtime** | ~36 minutes | ~30 hours | ~250 days |
+| **Numba Runtime** | **~1.5 minutes** | **~75 minutes** | **~10 days** |
+| **MATLAB Runtime** | ~47 minutes | ~39 hours | ~300 days |
 
 ---
 

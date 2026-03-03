@@ -54,8 +54,8 @@ This reduces the complexity of an update from a full matrix product to a simple 
 | Feature | Impact | Technical Driver |
 | :--- | :--- | :--- |
 | **NumPy Transition** | ~2x Speedup | BLAS/LAPACK Vectorization |
-| **Parquet Caching** | ~8x IO Speedup | Columnar Binary Storage |
+| **Parquet Caching** | ~15x IO Speedup | Columnar Binary Storage |
 | **Numba JIT** | ~15x Sampling Speedup | LLVM Machine Code Generation |
 | **Running Residuals**| ~2x Sampling Speedup | Complexity Reduction ($O(N^3) \to O(N^2)$) |
 
-**Total Cumulative Speedup (MATLAB $\to$ Numba): ~28x**
+**Total Cumulative Speedup (MATLAB $\to$ Numba): ~30x**
