@@ -79,11 +79,17 @@
             box-shadow: 0 10px 24px rgba(15, 32, 51, 0.06);
         }
 
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
         .selector-box {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
-            min-width: 300px;
+            min-width: 250px;
         }
 
         select {
@@ -95,6 +101,20 @@
             background: white;
             cursor: pointer;
         }
+
+        .btn-reset {
+            background: var(--accent-soft);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: none; /* Shown via JS */
+            height: fit-content;
+            margin-top: 1.5rem;
+        }
+        .btn-reset:hover { background: #ccfbf1; }
 
         .stats-grid {
             display: grid;
@@ -134,6 +154,45 @@
         .tag-neg { color: var(--neg); background: #ffebe9; }
         .tag-neu { color: var(--muted); background: #f6f8fa; }
 
+        .bio-link {
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: underline dotted;
+            transition: color 0.2s;
+        }
+        .bio-link:hover { color: #064e3b; text-decoration: underline; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(21, 32, 51, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem; right: 1.5rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--muted);
+        }
+        #bio-summary { line-height: 1.6; color: var(--ink); margin-top: 1rem; }
+        .bio-header { display: flex; align-items: baseline; gap: 1rem; border-bottom: 2px solid var(--accent-soft); padding-bottom: 0.5rem; }
+        .bio-header h2 { margin: 0; color: var(--accent); }
+        .bio-alias { color: var(--muted); font-size: 0.9rem; font-family: "IBM Plex Mono", monospace; }
+
         .hidden { display: none !important; }
 
         @media (max-width: 900px) {
@@ -147,16 +206,19 @@
 <main class="app-shell">
     <section class="hero">
         <div>
-            <p class="kicker">Bioinformatics Dashboard</p>
-            <h1>MAGICAL Explorer</h1>
+            <!-- <p class="kicker">Bioinformatics Dashboard</p> -->
+            <h1>MAGICAL Circuit Dashboard</h1>
             <p style="margin:0; color:var(--muted)">Inferred regulatory circuit dashboard.</p>
         </div>
         
-        <div class="selector-box">
-            <label for="dataset-select" class="kicker">Select Result Set</label>
-            <select id="dataset-select">
-                <option value="" disabled selected>Loading datasets...</option>
-            </select>
+        <div class="controls-row">
+            <div class="selector-box">
+                <label for="dataset-select" class="kicker">Select Result Set</label>
+                <select id="dataset-select">
+                    <option value="" disabled selected>Loading datasets...</option>
+                </select>
+            </div>
+            <button id="reset-btn" class="btn-reset" onclick="resetSearch()">Clear Filters</button>
         </div>
     </section>
 
@@ -187,7 +249,7 @@
             </div>
         </section>
 
-        <section class="card">
+        <section class="card" id="table-card">
             <div class="table-container">
                 <table id="triad-table" class="display">
                     <thead>
@@ -212,10 +274,27 @@
     </div>
 </main>
 
+<!-- Bio Info Modal -->
+<div id="bio-modal" class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <div class="bio-header">
+            <h2 id="bio-title">---</h2>
+            <span id="bio-alias" class="bio-alias"></span>
+        </div>
+        <div id="bio-fullname" style="font-weight: 600; margin-top: 0.5rem;"></div>
+        <div id="bio-summary">Click a gene to see information...</div>
+        <div style="margin-top: 1.5rem; text-align: right;">
+            <a id="bio-link-ext" href="#" target="_blank" style="font-size: 0.8rem; color: var(--accent);">View on GeneCards &nearrow;</a>
+        </div>
+    </div>
+</div>
+
 <script>
     const datasetSelect = document.getElementById('dataset-select');
     const resultsArea = document.getElementById('results-area');
     const emptyState = document.getElementById('empty-state');
+    let currentData = [];
 
     // --- Init ---
     window.onload = () => {
@@ -226,11 +305,9 @@
         emptyState.classList.add('hidden');
         resultsArea.classList.remove('hidden');
 
-        // Populate Select
         const keys = Object.keys(window.MAGICAL_RESULTS).sort();
         datasetSelect.innerHTML = keys.map(k => `<option value="${k}">${k}</option>`).join('');
 
-        // Default selection: astrocytes_py_5000 if exists, else first
         const defaultKey = keys.includes('astrocytes_py_5000') ? 'astrocytes_py_5000' : keys[0];
         datasetSelect.value = defaultKey;
         
@@ -245,9 +322,8 @@
         const lines = rawText.trim().split('\n');
         const data = [];
 
-        // Patterns
-        const fullPattern = /\(([\d\.]+),\s*([\+\-])\s*\[([\+\-])\(([\d\.]+)\),([\+\-])\(([\d\.]+)\)\]\)/;
-        const simpleDirPattern = /\(([\d\.]+),\s*([\+\-])\s*\[([\+\-]),([\+\-])\]\)/;
+        const fullPattern = /\(([\d\.]+),\s*([\+\-\?])\s*\[([\+\-\?])\(([\d\.]+)\)\s*,\s*([\+\-\?])\(([\d\.]+)\)\]\)/;
+        const simpleDirPattern = /\(([\d\.]+),\s*([\+\-\?])\s*\[([\+\-\?])\s*,\s*([\+\-\?])\]\)/;
         const mlPattern = /\(([\d\.]+)\)/;
 
         for (let i = 1; i < lines.length; i++) {
@@ -259,10 +335,24 @@
             const pgProb = parseFloat(parts[6]);
             const tfsRaw = parts[7].trim().replace(/,\s*$/, '');
 
-            const tfItems = tfsRaw.split(/,\s+/).filter(s => s);
+            const tfItems = [];
+            let current = "";
+            let pLevel = 0;
+            for (let char of tfsRaw) {
+                if (char === '(') pLevel++;
+                else if (char === ')') pLevel--;
+                if (char === ',' && pLevel === 0) {
+                    if (current.trim()) tfItems.push(current.trim());
+                    current = "";
+                } else {
+                    current += char;
+                }
+            }
+            if (current.trim()) tfItems.push(current.trim());
             
             tfItems.forEach(item => {
-                let tfName = item.split(' (')[0].trim();
+                const nameEnd = item.indexOf(' (');
+                let tfName = nameEnd !== -1 ? item.substring(0, nameEnd).trim() : item.trim();
                 let tpProb = 0, effect = '?', lDir = '?', bDir = '?', lCons = '', bCons = '';
 
                 let match;
@@ -284,25 +374,20 @@
                 });
             });
         }
+        currentData = data;
         renderDashboard(data);
     }
 
     function renderDashboard(data) {
-        // Update Stats
-        const uniqueGenes = new Set(data.map(d => d.gene)).size;
-        const uniqueTFs = new Set(data.map(d => d.tf)).size;
-        document.getElementById('stat-circuits').innerText = data.length;
-        document.getElementById('stat-genes').innerText = uniqueGenes;
-        document.getElementById('stat-tfs').innerText = uniqueTFs;
+        updateStats(data);
 
-        // Render Table
         const tableBody = document.getElementById('table-body');
         tableBody.innerHTML = data.map(d => {
             const effectTag = d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu');
             return `
                 <tr>
-                    <td><strong>${d.gene}</strong></td>
-                    <td>${d.tf}</td>
+                    <td><strong class="bio-link" onclick="fetchBioInfo('${d.gene}')">${d.gene}</strong></td>
+                    <td><span class="bio-link" onclick="fetchBioInfo('${d.tf}')">${d.tf}</span></td>
                     <td><span class="tag ${effectTag}">${d.effect === '?' ? 'Unknown' : (d.effect === '+' ? 'Activator' : 'Repressor')}</span></td>
                     <td style="font-family: 'IBM Plex Mono';">${d.combinedProb.toFixed(4)}</td>
                     <td>${d.lDir} ${d.lCons ? `<small style="color:var(--muted)">(${d.lCons})</small>` : ''}</td>
@@ -315,13 +400,43 @@
         if ($.fn.DataTable.isDataTable('#triad-table')) {
             $('#triad-table').DataTable().destroy();
         }
-        $('#triad-table').DataTable({
+        
+        const table = $('#triad-table').DataTable({
             order: [[3, 'desc']],
-            pageLength: 15,
+            pageLength: 25,
             dom: '<"top"f>rt<"bottom"lip><"clear">'
         });
 
+        // Update stats and Reset button visibility based on search results
+        table.on('search.dt', () => {
+            const filteredData = table.rows({ filter: 'applied' }).data().toArray().map(row => {
+                // Map the DOM array back to our data objects for stat calculation
+                // Row data from DT is array of strings [GeneHTML, TFHTML, EffectHTML, Prob, L, B, Peak]
+                return {
+                    gene: row[0].replace(/<[^>]*>/g, ''),
+                    tf: row[1].replace(/<[^>]*>/g, '')
+                };
+            });
+            updateStats(filteredData);
+            
+            const isSearching = table.search() !== "";
+            document.getElementById('reset-btn').style.display = isSearching ? 'block' : 'none';
+        });
+
         renderPlots(data);
+    }
+
+    function updateStats(data) {
+        const uniqueGenes = new Set(data.map(d => d.gene)).size;
+        const uniqueTFs = new Set(data.map(d => d.tf)).size;
+        document.getElementById('stat-circuits').innerText = data.length;
+        document.getElementById('stat-genes').innerText = uniqueGenes;
+        document.getElementById('stat-tfs').innerText = uniqueTFs;
+    }
+
+    function resetSearch() {
+        const table = $('#triad-table').DataTable();
+        table.search('').draw();
     }
 
     function renderPlots(data) {
@@ -338,13 +453,23 @@
             x: tfNames.map(n => tfMap[n].genes.size),
             y: tfNames.map(n => tfMap[n].scoreSum / tfMap[n].count),
             text: tfNames,
-            mode: 'markers+text',
-            textposition: 'top center',
+            customdata: tfNames.map(n => tfMap[n].count),
+            mode: 'markers',
             marker: {
                 size: tfNames.map(n => tfMap[n].count),
                 sizeref: Math.max(...tfNames.map(n => tfMap[n].count)) / 40,
-                color: '#0f766e', opacity: 0.6
-            }
+                color: tfNames.map(n => tfMap[n].genes.size),
+                colorscale: 'Viridis',
+                showscale: true,
+                colorbar: { title: 'Genes', thickness: 15 },
+                opacity: 0.7
+            },
+            hovertemplate: 
+                "<b>TF: %{text}</b><br>" +
+                "Unique Genes: %{x}<br>" +
+                "Avg. Confidence: %{y:.4f}<br>" +
+                "Total Circuits: %{customdata}<br>" +
+                "<i style='color:#ccc'>Click to filter table</i><extra></extra>"
         };
 
         const bubbleLayout = {
@@ -352,15 +477,25 @@
             xaxis: { title: 'Unique Genes Regulated' },
             yaxis: { title: 'Mean Circuit Confidence' },
             font: { family: 'Space Grotesk' },
+            hovermode: 'closest',
             paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
         };
 
-        Plotly.newPlot('bubble-plot', [bubbleTrace], bubbleLayout);
+        const plotEl = document.getElementById('bubble-plot');
+        Plotly.newPlot(plotEl, [bubbleTrace], bubbleLayout);
+
+        plotEl.on('plotly_click', function(clickData) {
+            const tfName = clickData.points[0].text;
+            const table = $('#triad-table').DataTable();
+            table.search(tfName).draw();
+            document.getElementById('table-card').scrollIntoView({ behavior: 'smooth' });
+        });
 
         const distTrace = {
             x: data.map(d => d.combinedProb),
             type: 'histogram',
-            marker: { color: '#0f766e' }
+            marker: { color: '#0f766e' },
+            hovertemplate: "Confidence: %{x}<br>Count: %{y}<extra></extra>"
         };
 
         const distLayout = {
@@ -372,6 +507,44 @@
         };
 
         Plotly.newPlot('dist-plot', [distTrace], distLayout);
+    }
+
+    async function fetchBioInfo(symbol) {
+        const modal = document.getElementById('bio-modal');
+        const title = document.getElementById('bio-title');
+        const alias = document.getElementById('bio-alias');
+        const summary = document.getElementById('bio-summary');
+        const fullname = document.getElementById('bio-fullname');
+        const extLink = document.getElementById('bio-link-ext');
+
+        title.innerText = symbol;
+        alias.innerText = "Loading...";
+        fullname.innerText = "";
+        summary.innerText = "Fetching biological data from MyGene.info...";
+        extLink.href = `https://www.genecards.org/Search/Keyword?queryString=${symbol}`;
+        modal.style.display = 'flex';
+
+        try {
+            const response = await fetch(`https://mygene.info/v3/query?q=symbol:${symbol}&fields=summary,name,alias&species=human`);
+            const result = await response.json();
+            
+            if (result.hits && result.hits.length > 0) {
+                const hit = result.hits[0];
+                alias.innerText = hit.alias ? `Aliases: ${Array.isArray(hit.alias) ? hit.alias.join(', ') : hit.alias}` : "";
+                fullname.innerText = hit.name || "";
+                summary.innerText = hit.summary || "No functional summary available for this entry.";
+            } else {
+                summary.innerText = "No specific biological summary found for this symbol in the human database.";
+                alias.innerText = "";
+            }
+        } catch (err) {
+            summary.innerText = "Error connecting to the biological database.";
+            console.error(err);
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('bio-modal').style.display = 'none';
     }
 </script>
 
