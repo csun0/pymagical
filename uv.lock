@@ -1196,7 +1196,9 @@ viz = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "matplotlib" },
     { name = "pytest" },
+    { name = "seaborn" },
 ]
 
 [package.metadata]
@@ -1217,7 +1219,11 @@ requires-dist = [
 provides-extras = ["dev", "viz"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.2" }]
+dev = [
+    { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+]
 
 [[package]]
 name = "pyparsing"

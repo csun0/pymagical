@@ -57,13 +57,23 @@ def compare_fidelity(ml_file, py_file, ml_l_mat, py_l_mat, ml_b_mat, py_b_mat):
         common_genes = np.intersect1d(ml_l.columns, py_l.columns)
         common_tfs = np.intersect1d(ml_b.columns, py_b.columns)
         
-        l_corr = np.corrcoef(ml_l.loc[common_peaks, common_genes].values.flatten(), 
-                             py_l.loc[common_peaks, common_genes].values.flatten())[0,1]
-        b_corr = np.corrcoef(ml_b.loc[common_peaks, common_tfs].values.flatten(), 
-                             py_b.loc[common_peaks, common_tfs].values.flatten())[0,1]
+        l_val_ml = ml_l.loc[common_peaks, common_genes].values.flatten()
+        l_val_py = py_l.loc[common_peaks, common_genes].values.flatten()
+        b_val_ml = ml_b.loc[common_peaks, common_tfs].values.flatten()
+        b_val_py = py_b.loc[common_peaks, common_tfs].values.flatten()
+
+        l_corr = np.corrcoef(l_val_ml, l_val_py)[0,1]
+        b_corr = np.corrcoef(b_val_ml, b_val_py)[0,1]
+
+        # Calculate non-zero correlation (union of non-zero entries)
+        l_nonzero = (l_val_ml != 0) | (l_val_py != 0)
+        b_nonzero = (b_val_ml != 0) | (b_val_py != 0)
         
-        print(f"  L matrix (Peak-Gene) Pearson correlation: {l_corr:.4f}")
-        print(f"  B matrix (TF-Peak) Pearson correlation:   {b_corr:.4f}")
+        l_corr_nz = np.corrcoef(l_val_ml[l_nonzero], l_val_py[l_nonzero])[0,1] if np.any(l_nonzero) else 0
+        b_corr_nz = np.corrcoef(b_val_ml[b_nonzero], b_val_py[b_nonzero])[0,1] if np.any(b_nonzero) else 0
+
+        print(f"  L matrix (Peak-Gene) Pearson correlation: {l_corr:.4f} (non-zero only: {l_corr_nz:.4f})")
+        print(f"  B matrix (TF-Peak) Pearson correlation:   {b_corr:.4f} (non-zero only: {b_corr_nz:.4f})")
     except Exception as e:
         print(f"  Error comparing matrices: {e}")
     
