@@ -78,7 +78,7 @@
         #drop-zone {
             border: 2px dashed var(--line);
             border-radius: 12px;
-            padding: 2rem;
+            padding: 3rem;
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
@@ -97,22 +97,14 @@
             gap: 1rem;
         }
 
-        .stat-card {
-            text-align: center;
-        }
-
+        .stat-card { text-align: center; }
         .stat-value {
             font-size: 2rem;
             font-weight: 700;
             color: var(--accent);
             font-family: "IBM Plex Mono", monospace;
         }
-
-        .stat-label {
-            color: var(--muted);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-        }
+        .stat-label { color: var(--muted); font-size: 0.9rem; text-transform: uppercase; }
 
         /* Visualization Grid */
         .viz-grid {
@@ -121,72 +113,55 @@
             gap: 1.5rem;
         }
 
-        .plot-container {
-            width: 100%;
-            height: 400px;
-        }
+        .plot-container { width: 100%; height: 400px; }
 
         /* Table Styling */
         .table-container { overflow-x: auto; }
-        
-        table.dataTable {
-            font-size: 0.95rem;
-            border-bottom: none !important;
-        }
-
+        table.dataTable { font-size: 0.9rem; border-bottom: none !important; width: 100% !important; }
         table.dataTable thead th {
             background: #fafbfc;
             text-transform: uppercase;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--muted);
             border-bottom: 1px solid var(--line) !important;
         }
 
-        .tag {
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
+        .tag { font-weight: 600; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
         .tag-pos { color: var(--pos); background: #e6ffed; }
         .tag-neg { color: var(--neg); background: #ffebe9; }
         .tag-neu { color: var(--muted); background: #f6f8fa; }
 
         .hidden { display: none !important; }
 
-        @media (max-width: 900px) {
-            .viz-grid { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 900px) { .viz-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
 <main class="app-shell">
     <section class="hero">
-        <p class="kicker">Bioinformatics Toolbox</p>
+        <p class="kicker">Bioinformatics Dashboard</p>
         <h1>MAGICAL Explorer</h1>
-        <p>Interactive visualization for regulatory circuit inference results.</p>
+        <p>Drop your <code>.txt</code> output to visualize regulatory networks.</p>
     </section>
 
-    <!-- Upload Section -->
     <section class="card" id="upload-section">
         <div id="drop-zone">
-            <strong>Drop your MAGICAL output (.txt) here</strong>
-            <p style="margin: 0.5rem 0 0; color: var(--muted);">or click to select a file</p>
+            <strong>Drag & Drop MAGICAL Output</strong>
+            <p style="margin: 0.5rem 0 0; color: var(--muted);">or click to browse files</p>
             <input type="file" id="file-input" class="hidden" accept=".txt">
         </div>
     </section>
 
-    <!-- Results Section (hidden until file loaded) -->
     <div id="results-area" class="hidden" style="display: grid; gap: 1.5rem;">
-        
         <section class="stats-grid">
             <div class="card stat-card">
                 <div class="stat-value" id="stat-circuits">0</div>
-                <div class="stat-label">Total Circuits</div>
+                <div class="stat-label">Inferred Circuits</div>
             </div>
             <div class="card stat-card">
                 <div class="stat-value" id="stat-genes">0</div>
-                <div class="stat-label">Unique Genes</div>
+                <div class="stat-label">Target Genes</div>
             </div>
             <div class="card stat-card">
                 <div class="stat-value" id="stat-tfs">0</div>
@@ -200,23 +175,23 @@
                 <div id="bubble-plot" class="plot-container"></div>
             </div>
             <div class="card">
-                <h2>Confidence Distribution</h2>
+                <h2>Score Distribution</h2>
                 <div id="dist-plot" class="plot-container"></div>
             </div>
         </section>
 
         <section class="card">
             <div class="table-container">
-                <table id="triad-table" class="display" style="width:100%">
+                <table id="triad-table" class="display">
                     <thead>
                         <tr>
                             <th>Gene</th>
-                            <th>TF Name</th>
-                            <th>Circuit Confidence</th>
-                            <th>Effect</th>
+                            <th>TF</th>
+                            <th>Overall Effect</th>
+                            <th>Circuit Prob</th>
+                            <th>Looping (L)</th>
+                            <th>Binding (B)</th>
                             <th>Peak Location</th>
-                            <th>Looping (L) Dir</th>
-                            <th>Binding (B) Dir</th>
                         </tr>
                     </thead>
                     <tbody id="table-body"></tbody>
@@ -231,7 +206,6 @@
     const fileInput = document.getElementById('file-input');
     const resultsArea = document.getElementById('results-area');
 
-    // --- Interaction Logic ---
     dropZone.onclick = () => fileInput.click();
     dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
     dropZone.ondragleave = () => dropZone.classList.remove('dragover');
@@ -249,14 +223,13 @@
         reader.readAsText(file);
     }
 
-    // --- Robust Parsing Logic ---
     function processData(rawText) {
         const lines = rawText.trim().split('\n');
         const data = [];
 
-        // Patterns (unanchored to match within TF strings)
+        // Updated Patterns with escaped symbols
         const fullPattern = /\(([\d\.]+),\s*([\+\-])\s*\[([\+\-])\(([\d\.]+)\),([\+\-])\(([\d\.]+)\)\]\)/;
-        const simplePattern = /\(([\d\.]+),\s*([\+\-])\s*\[([\+\-]),([\+\-])\]\)/;
+        const simpleDirPattern = /\(([\d\.]+),\s*([\+\-])\s*\[([\+\-]),([\+\-])\]\)/;
         const mlPattern = /\(([\d\.]+)\)/;
 
         for (let i = 1; i < lines.length; i++) {
@@ -266,49 +239,40 @@
             const gene = parts[0];
             const peak = `${parts[3]}:${parts[4]}-${parts[5]}`;
             const pgProb = parseFloat(parts[6]);
-            const tfsRaw = parts[7].trim().replace(/,$/, '');
+            const tfsRaw = parts[7].trim().replace(/,\s*$/, ''); // Remove trailing comma
 
-            const tfItems = tfsRaw.split(',').map(s => s.trim()).filter(s => s);
+            // Split by comma BUT handle potential spaces after comma
+            const tfItems = tfsRaw.split(/,\s+/).filter(s => s);
             
             tfItems.forEach(item => {
                 let tfName = item.split(' (')[0].trim();
-                let prob = 0, effect = '?', lDir = '?', bDir = '?', lCons = '', bCons = '';
+                let tpProb = 0, effect = '?', lDir = '?', bDir = '?', lCons = '', bCons = '';
 
-                // Try Full Directional + Consistency (Newest)
-                const fullMatch = fullPattern.exec(item);
-                const simpleDirMatch = simplePattern.exec(item);
-                const mlMatch = mlPattern.exec(item);
-
-                if (fullMatch) {
-                    prob = fullMatch[1];
-                    effect = fullMatch[2];
-                    lDir = fullMatch[3];
-                    lCons = fullMatch[4];
-                    bDir = fullMatch[5];
-                    bCons = fullMatch[6];
-                } else if (simpleDirMatch) {
-                    prob = simpleDirMatch[1];
-                    effect = simpleDirMatch[2];
-                    lDir = simpleDirMatch[3];
-                    bDir = simpleDirMatch[4];
-                } else if (mlMatch) {
-                    prob = mlMatch[1];
+                let match;
+                if ((match = fullPattern.exec(item))) {
+                    [ , tpProb, effect, lDir, lCons, bDir, bCons ] = match;
+                } else if ((match = simpleDirPattern.exec(item))) {
+                    [ , tpProb, effect, lDir, bDir ] = match;
+                } else if ((match = mlPattern.exec(item))) {
+                    tpProb = match[1];
                 }
+
+                const combinedProb = pgProb * parseFloat(tpProb);
 
                 data.push({
                     gene, peak, tf: tfName,
-                    prob: parseFloat(prob),
-                    combinedProb: pgProb * parseFloat(prob),
+                    tpProb: parseFloat(tpProb),
+                    pgProb: pgProb,
+                    combinedProb: isNaN(combinedProb) ? 0 : combinedProb,
                     effect, lDir, bDir, lCons, bCons
                 });
             });
         }
 
         if (data.length === 0) {
-            alert("Could not parse any valid circuits from this file. Please check the format.");
+            alert("No circuits could be parsed. Please check if the file format is correct.");
             return;
         }
-
         renderDashboard(data);
     }
 
@@ -323,31 +287,34 @@
         document.getElementById('stat-tfs').innerText = uniqueTFs;
 
         const tableBody = document.getElementById('table-body');
-        tableBody.innerHTML = data.map(d => `
-            <tr>
-                <td><strong>${d.gene}</strong></td>
-                <td>${d.tf}</td>
-                <td style="font-family: monospace;">${d.combinedProb.toFixed(4)}</td>
-                <td><span class="tag ${d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu')}">${d.effect}</span></td>
-                <td style="font-size: 0.8rem; color: var(--muted);">${d.peak}</td>
-                <td>${d.lDir} ${d.lCons ? `<small class="tag-neu" style="padding:1px 3px">Cons: ${d.lCons}</small>` : ''}</td>
-                <td>${d.bDir} ${d.bCons ? `<small class="tag-neu" style="padding:1px 3px">Cons: ${d.bCons}</small>` : ''}</td>
-            </tr>
-        `).join('');
+        tableBody.innerHTML = data.map(d => {
+            const effectTag = d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu');
+            return `
+                <tr>
+                    <td><strong>${d.gene}</strong></td>
+                    <td>${d.tf}</td>
+                    <td><span class="tag ${effectTag}">${d.effect === '?' ? 'Unknown' : (d.effect === '+' ? 'Activator' : 'Repressor')}</span></td>
+                    <td style="font-family: 'IBM Plex Mono';">${d.combinedProb.toFixed(4)}</td>
+                    <td>${d.lDir} ${d.lCons ? `<small style="color:var(--muted)">(${d.lCons})</small>` : ''}</td>
+                    <td>${d.bDir} ${d.bCons ? `<small style="color:var(--muted)">(${d.bCons})</small>` : ''}</td>
+                    <td style="font-size: 0.75rem; color: var(--muted); font-family: 'IBM Plex Mono';">${d.peak}</td>
+                </tr>
+            `;
+        }).join('');
 
         if ($.fn.DataTable.isDataTable('#triad-table')) {
             $('#triad-table').DataTable().destroy();
         }
         $('#triad-table').DataTable({
-            order: [[2, 'desc']],
-            pageLength: 15
+            order: [[3, 'desc']],
+            pageLength: 15,
+            dom: '<"top"f>rt<"bottom"lip><"clear">'
         });
 
         renderPlots(data);
     }
 
     function renderPlots(data) {
-        // 1. Bubble Plot (TF influence)
         const tfMap = {};
         data.forEach(d => {
             if (!tfMap[d.tf]) tfMap[d.tf] = { genes: new Set(), scoreSum: 0, count: 0 };
@@ -366,22 +333,20 @@
             marker: {
                 size: tfNames.map(n => tfMap[n].count),
                 sizeref: Math.max(...tfNames.map(n => tfMap[n].count)) / 40,
-                color: '#0f766e',
-                opacity: 0.6
+                color: '#0f766e', opacity: 0.6
             }
         };
 
         const bubbleLayout = {
-            margin: { t: 10, r: 10, b: 40, l: 50 },
+            margin: { t: 30, r: 10, b: 40, l: 50 },
             xaxis: { title: 'Unique Genes Regulated' },
-            yaxis: { title: 'Mean Confidence' },
-            hovermode: 'closest',
-            font: { family: 'Space Grotesk' }
+            yaxis: { title: 'Mean Circuit Confidence' },
+            font: { family: 'Space Grotesk' },
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
         };
 
         Plotly.newPlot('bubble-plot', [bubbleTrace], bubbleLayout);
 
-        // 2. Confidence Distribution
         const distTrace = {
             x: data.map(d => d.combinedProb),
             type: 'histogram',
@@ -389,10 +354,11 @@
         };
 
         const distLayout = {
-            margin: { t: 10, r: 10, b: 40, l: 50 },
+            margin: { t: 30, r: 10, b: 40, l: 50 },
             xaxis: { title: 'Combined Probability' },
-            yaxis: { title: 'Frequency' },
-            font: { family: 'Space Grotesk' }
+            yaxis: { title: 'Count' },
+            font: { family: 'Space Grotesk' },
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
         };
 
         Plotly.newPlot('dist-plot', [distTrace], distLayout);
