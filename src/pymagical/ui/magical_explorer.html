@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGICAL Explorer</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- Dependencies (CDNs) -->
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #f4f6f9;
+            --surface: #ffffff;
+            --ink: #152033;
+            --muted: #5f6b7d;
+            --line: #d8e0ea;
+            --accent: #0f766e;
+            --accent-soft: #e6fffa;
+            --pos: #3fb950;
+            --neg: #f85149;
+            --warn: #b42318;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Space Grotesk", "Segoe UI", sans-serif;
+            color: var(--ink);
+            background: 
+                radial-gradient(circle at 12% 10%, #d0f3ea 0, rgba(208, 243, 234, 0) 34%),
+                radial-gradient(circle at 94% 0%, #d6e7ff 0, rgba(214, 231, 255, 0) 36%),
+                var(--bg);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .app-shell {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .hero {
+            text-align: left;
+            padding: 1rem 0;
+        }
+
+        .kicker {
+            color: var(--accent);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            margin: 0;
+        }
+
+        h1 { margin: 0.5rem 0; font-size: 2.5rem; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 24px rgba(15, 32, 51, 0.06);
+        }
+
+        /* File Upload Zone */
+        #drop-zone {
+            border: 2px dashed var(--line);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: rgba(255,255,255,0.5);
+        }
+
+        #drop-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-card {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            font-family: "IBM Plex Mono", monospace;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        /* Visualization Grid */
+        .viz-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .plot-container {
+            width: 100%;
+            height: 400px;
+        }
+
+        /* Table Styling */
+        .table-container { overflow-x: auto; }
+        
+        table.dataTable {
+            font-size: 0.95rem;
+            border-bottom: none !important;
+        }
+
+        table.dataTable thead th {
+            background: #fafbfc;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            color: var(--muted);
+            border-bottom: 1px solid var(--line) !important;
+        }
+
+        .tag {
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .tag-pos { color: var(--pos); background: #e6ffed; }
+        .tag-neg { color: var(--neg); background: #ffebe9; }
+        .tag-neu { color: var(--muted); background: #f6f8fa; }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 900px) {
+            .viz-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<main class="app-shell">
+    <section class="hero">
+        <p class="kicker">Bioinformatics Toolbox</p>
+        <h1>MAGICAL Explorer</h1>
+        <p>Interactive visualization for regulatory circuit inference results.</p>
+    </section>
+
+    <!-- Upload Section -->
+    <section class="card" id="upload-section">
+        <div id="drop-zone">
+            <strong>Drop your MAGICAL output (.txt) here</strong>
+            <p style="margin: 0.5rem 0 0; color: var(--muted);">or click to select a file</p>
+            <input type="file" id="file-input" class="hidden" accept=".txt">
+        </div>
+    </section>
+
+    <!-- Results Section (hidden until file loaded) -->
+    <div id="results-area" class="hidden" style="display: grid; gap: 1.5rem;">
+        
+        <section class="stats-grid">
+            <div class="card stat-card">
+                <div class="stat-value" id="stat-circuits">0</div>
+                <div class="stat-label">Total Circuits</div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-value" id="stat-genes">0</div>
+                <div class="stat-label">Unique Genes</div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-value" id="stat-tfs">0</div>
+                <div class="stat-label">Active TFs</div>
+            </div>
+        </section>
+
+        <section class="viz-grid">
+            <div class="card">
+                <h2>Regulatory Influence Landscape</h2>
+                <div id="bubble-plot" class="plot-container"></div>
+            </div>
+            <div class="card">
+                <h2>Confidence Distribution</h2>
+                <div id="dist-plot" class="plot-container"></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="table-container">
+                <table id="triad-table" class="display" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Gene</th>
+                            <th>TF</th>
+                            <th>Prob</th>
+                            <th>Effect</th>
+                            <th>Peak Location</th>
+                            <th>Looping (Cons.)</th>
+                            <th>Binding (Cons.)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const resultsArea = document.getElementById('results-area');
+
+    // --- Interaction Logic ---
+    dropZone.onclick = () => fileInput.click();
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        handleFile(e.dataTransfer.files[0]);
+    };
+    fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+    function handleFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => processData(e.target.result);
+        reader.readAsText(file);
+    }
+
+    // --- Processing Logic ---
+    function processData(rawText) {
+        const lines = rawText.trim().split('\n');
+        const header = lines[0].split('\t');
+        const data = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split('\t');
+            if (parts.length < 8) continue;
+
+            const gene = parts[0];
+            const peak = `${parts[3]}:${parts[4]}-${parts[5]}`;
+            const pgProb = parseFloat(parts[6]);
+            const tfsRaw = parts[7].trim().replace(/,$/, '');
+
+            // Support multiple TF formats
+            // 1. TF (0.90, + [+(0.98),+(0.95)])
+            // 2. TF (0.90, + [+,+])
+            // 3. TF (0.90)
+            const tfItems = tfsRaw.split(',').map(s => s.trim()).filter(s => s);
+            
+            tfItems.forEach(item => {
+                let tfName = item.split(' ')[0];
+                let prob = 0, effect = '?', lDir = '?', bDir = '?', lCons = '', bCons = '';
+
+                // Try Full Directional + Consistency (Newest)
+                const fullMatch = item.match(/\(([\d\.]+),\s*([\+\-])\s*\[([\+\-])\(([\d\.]+)\),([\+\-])\(([\d\.]+)\)\]\)/);
+                const simpleDirMatch = item.match(/\(([\d\.]+),\s*([\+\-])\s*\[([\+\-]),([\+\-])\]\)/);
+                const mlMatch = item.match(/\(([\d\.]+)\)/);
+
+                if (fullMatch) {
+                    [, prob, effect, lDir, lCons, bDir, bCons] = fullMatch;
+                } else if (simpleDirMatch) {
+                    [, prob, effect, lDir, bDir] = simpleDirMatch;
+                } else if (mlMatch) {
+                    prob = mlMatch[1];
+                }
+
+                data.push({
+                    gene, peak, tf: tfName,
+                    prob: parseFloat(prob),
+                    combinedProb: pgProb * parseFloat(prob),
+                    effect, lDir, bDir, lCons, bCons
+                });
+            });
+        }
+
+        renderDashboard(data);
+    }
+
+    function renderDashboard(data) {
+        resultsArea.classList.remove('hidden');
+        document.getElementById('upload-section').style.display = 'none';
+
+        // Update Stats
+        const uniqueGenes = new Set(data.map(d => d.gene)).size;
+        const uniqueTFs = new Set(data.map(d => d.tf)).size;
+        document.getElementById('stat-circuits').innerText = data.length;
+        document.getElementById('stat-genes').innerText = uniqueGenes;
+        document.getElementById('stat-tfs').innerText = uniqueTFs;
+
+        // Render Table
+        const tableBody = document.getElementById('table-body');
+        tableBody.innerHTML = data.map(d => `
+            <tr>
+                <td><strong>${d.gene}</strong></td>
+                <td>${d.tf}</td>
+                <td style="font-family: monospace;">${d.combinedProb.toFixed(4)}</td>
+                <td><span class="tag ${d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu')}">${d.effect}</span></td>
+                <td style="font-size: 0.8rem; color: var(--muted);">${d.peak}</td>
+                <td>${d.lDir} ${d.lCons ? `<small>(${d.lCons})</small>` : ''}</td>
+                <td>${d.bDir} ${d.bCons ? `<small>(${d.bCons})</small>` : ''}</td>
+            </tr>
+        `).join('');
+
+        if ($.fn.DataTable.isDataTable('#triad-table')) {
+            $('#triad-table').DataTable().destroy();
+        }
+        $('#triad-table').DataTable({
+            order: [[2, 'desc']],
+            pageLength: 15
+        });
+
+        renderPlots(data);
+    }
+
+    function renderPlots(data) {
+        // 1. Bubble Plot (TF influence)
+        const tfMap = {};
+        data.forEach(d => {
+            if (!tfMap[d.tf]) tfMap[d.tf] = { genes: new Set(), scoreSum: 0, count: 0 };
+            tfMap[d.tf].genes.add(d.gene);
+            tfMap[d.tf].scoreSum += d.combinedProb;
+            tfMap[d.tf].count++;
+        });
+
+        const tfNames = Object.keys(tfMap);
+        const bubbleTrace = {
+            x: tfNames.map(n => tfMap[n].genes.size),
+            y: tfNames.map(n => tfMap[n].scoreSum / tfMap[n].count),
+            text: tfNames,
+            mode: 'markers+text',
+            textposition: 'top center',
+            marker: {
+                size: tfNames.map(n => tfMap[n].count),
+                sizeref: Math.max(...tfNames.map(n => tfMap[n].count)) / 40,
+                color: '#0f766e',
+                opacity: 0.6
+            }
+        };
+
+        const bubbleLayout = {
+            margin: { t: 10, r: 10, b: 40, l: 50 },
+            xaxis: { title: 'Unique Genes Regulated' },
+            yaxis: { title: 'Mean Confidence' },
+            hovermode: 'closest',
+            font: { family: 'Space Grotesk' }
+        };
+
+        Plotly.newPlot('bubble-plot', [bubbleTrace], bubbleLayout);
+
+        // 2. Confidence Distribution
+        const distTrace = {
+            x: data.map(d => d.combinedProb),
+            type: 'histogram',
+            marker: { color: '#0f766e' }
+        };
+
+        const distLayout = {
+            margin: { t: 10, r: 10, b: 40, l: 50 },
+            xaxis: { title: 'Combined Probability' },
+            yaxis: { title: 'Frequency' },
+            font: { family: 'Space Grotesk' }
+        };
+
+        Plotly.newPlot('dist-plot', [distTrace], distLayout);
+    }
+</script>
+
+</body>
+</html>

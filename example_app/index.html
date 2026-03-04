@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Costco Splitter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <p class="kicker">Receipt Split App</p>
+        <h1>Costco Trip Splitter</h1>
+        <p>
+          Assign each item to Varun, Chris, and Dillon. If multiple people are
+          selected on one item, that item is split evenly between them.
+        </p>
+      </section>
+
+      <section class="controls card">
+        <div class="control-group">
+          <label for="payer">Who paid at checkout?</label>
+          <select id="payer"></select>
+        </div>
+        <div class="control-group">
+          <label for="taxInput">Tax ($)</label>
+          <input id="taxInput" type="number" step="0.01" min="0" />
+        </div>
+        <div class="control-group">
+          <button id="clearAssignments" type="button">Clear Assignments</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Price</th>
+                <th>Varun</th>
+                <th>Chris</th>
+                <th>Dillon</th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+          </table>
+        </div>
+        <p id="unassignedMessage" class="message hidden"></p>
+      </section>
+
+      <section class="summary-grid">
+        <article class="card">
+          <h2>Totals</h2>
+          <dl class="summary-list">
+            <div>
+              <dt>Subtotal</dt>
+              <dd id="subtotalValue">$0.00</dd>
+            </div>
+            <div>
+              <dt>Tax</dt>
+              <dd id="taxValue">$0.00</dd>
+            </div>
+            <div>
+              <dt>Receipt Total</dt>
+              <dd id="grandTotalValue">$0.00</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="card">
+          <h2>Per Person</h2>
+          <table class="person-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Subtotal Share</th>
+                <th>Tax Share</th>
+                <th>Total Share</th>
+              </tr>
+            </thead>
+            <tbody id="personTotalsBody"></tbody>
+          </table>
+        </article>
+
+        <article class="card">
+          <h2>Settlement</h2>
+          <ul id="settlementList" class="settlement-list"></ul>
+        </article>
+      </section>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
