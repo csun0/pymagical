@@ -211,12 +211,12 @@
                     <thead>
                         <tr>
                             <th>Gene</th>
-                            <th>TF</th>
-                            <th>Prob</th>
+                            <th>TF Name</th>
+                            <th>Circuit Confidence</th>
                             <th>Effect</th>
                             <th>Peak Location</th>
-                            <th>Looping (Cons.)</th>
-                            <th>Binding (Cons.)</th>
+                            <th>Looping (L) Dir</th>
+                            <th>Binding (B) Dir</th>
                         </tr>
                     </thead>
                     <tbody id="table-body"></tbody>
@@ -249,11 +249,15 @@
         reader.readAsText(file);
     }
 
-    // --- Processing Logic ---
+    // --- Robust Parsing Logic ---
     function processData(rawText) {
         const lines = rawText.trim().split('\n');
-        const header = lines[0].split('\t');
         const data = [];
+
+        // Patterns (unanchored to match within TF strings)
+        const fullPattern = /\(([\d\.]+),\s*([\+\-])\s*\[([\+\-])\(([\d\.]+)\),([\+\-])\(([\d\.]+)\)\]\)/;
+        const simplePattern = /\(([\d\.]+),\s*([\+\-])\s*\[([\+\-]),([\+\-])\]\)/;
+        const mlPattern = /\(([\d\.]+)\)/;
 
         for (let i = 1; i < lines.length; i++) {
             const parts = lines[i].split('\t');
@@ -264,25 +268,29 @@
             const pgProb = parseFloat(parts[6]);
             const tfsRaw = parts[7].trim().replace(/,$/, '');
 
-            // Support multiple TF formats
-            // 1. TF (0.90, + [+(0.98),+(0.95)])
-            // 2. TF (0.90, + [+,+])
-            // 3. TF (0.90)
             const tfItems = tfsRaw.split(',').map(s => s.trim()).filter(s => s);
             
             tfItems.forEach(item => {
-                let tfName = item.split(' ')[0];
+                let tfName = item.split(' (')[0].trim();
                 let prob = 0, effect = '?', lDir = '?', bDir = '?', lCons = '', bCons = '';
 
                 // Try Full Directional + Consistency (Newest)
-                const fullMatch = item.match(/\(([\d\.]+),\s*([\+\-])\s*\[([\+\-])\(([\d\.]+)\),([\+\-])\(([\d\.]+)\)\]\)/);
-                const simpleDirMatch = item.match(/\(([\d\.]+),\s*([\+\-])\s*\[([\+\-]),([\+\-])\]\)/);
-                const mlMatch = item.match(/\(([\d\.]+)\)/);
+                const fullMatch = fullPattern.exec(item);
+                const simpleDirMatch = simplePattern.exec(item);
+                const mlMatch = mlPattern.exec(item);
 
                 if (fullMatch) {
-                    [, prob, effect, lDir, lCons, bDir, bCons] = fullMatch;
+                    prob = fullMatch[1];
+                    effect = fullMatch[2];
+                    lDir = fullMatch[3];
+                    lCons = fullMatch[4];
+                    bDir = fullMatch[5];
+                    bCons = fullMatch[6];
                 } else if (simpleDirMatch) {
-                    [, prob, effect, lDir, bDir] = simpleDirMatch;
+                    prob = simpleDirMatch[1];
+                    effect = simpleDirMatch[2];
+                    lDir = simpleDirMatch[3];
+                    bDir = simpleDirMatch[4];
                 } else if (mlMatch) {
                     prob = mlMatch[1];
                 }
@@ -296,6 +304,11 @@
             });
         }
 
+        if (data.length === 0) {
+            alert("Could not parse any valid circuits from this file. Please check the format.");
+            return;
+        }
+
         renderDashboard(data);
     }
 
@@ -303,14 +316,12 @@
         resultsArea.classList.remove('hidden');
         document.getElementById('upload-section').style.display = 'none';
 
-        // Update Stats
         const uniqueGenes = new Set(data.map(d => d.gene)).size;
         const uniqueTFs = new Set(data.map(d => d.tf)).size;
         document.getElementById('stat-circuits').innerText = data.length;
         document.getElementById('stat-genes').innerText = uniqueGenes;
         document.getElementById('stat-tfs').innerText = uniqueTFs;
 
-        // Render Table
         const tableBody = document.getElementById('table-body');
         tableBody.innerHTML = data.map(d => `
             <tr>
@@ -319,8 +330,8 @@
                 <td style="font-family: monospace;">${d.combinedProb.toFixed(4)}</td>
                 <td><span class="tag ${d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu')}">${d.effect}</span></td>
                 <td style="font-size: 0.8rem; color: var(--muted);">${d.peak}</td>
-                <td>${d.lDir} ${d.lCons ? `<small>(${d.lCons})</small>` : ''}</td>
-                <td>${d.bDir} ${d.bCons ? `<small>(${d.bCons})</small>` : ''}</td>
+                <td>${d.lDir} ${d.lCons ? `<small class="tag-neu" style="padding:1px 3px">Cons: ${d.lCons}</small>` : ''}</td>
+                <td>${d.bDir} ${d.bCons ? `<small class="tag-neu" style="padding:1px 3px">Cons: ${d.bCons}</small>` : ''}</td>
             </tr>
         `).join('');
 
