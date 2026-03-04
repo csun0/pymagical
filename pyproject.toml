@@ -27,6 +27,7 @@ viz = [
     "plotly>=6.5.2",
 ]
 dev = [
+    "pytest>=8.0.0",
     "matplotlib>=3.10.8",
     "seaborn>=0.13.2",
     "pyfonts>=1.2.0",
@@ -43,3 +44,8 @@ include = ["src/pymagical", "README.md", "LICENSE"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pymagical"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
