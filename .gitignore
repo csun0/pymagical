@@ -6,3 +6,4 @@ outputs/
 eval/benchmarks/logs/
 outputs_bench/
 .DS_Store
+.gemini/
