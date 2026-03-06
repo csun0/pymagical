@@ -12,6 +12,15 @@ license = "MIT"
 authors = [
     { name = "C. Sun", email = "cs9095@princeton.edu" }
 ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 dependencies = [
     "numpy>=1.22.0",
     "scipy>=1.8.0",
@@ -35,6 +44,11 @@ dev = [
 
 [project.scripts]
 pymagical = "pymagical.cli:main"
+
+[project.urls]
+Documentation = "https://github.com/csun0/pymagical/blob/main/README.md"
+Repository = "https://github.com/csun0/pymagical"
+Issues = "https://github.com/csun0/pymagical/issues"
 
 [tool.hatch.version]
 source = "vcs"

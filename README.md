@@ -12,6 +12,15 @@ The methodology is based on the framework described in:
 *   **IO Caching:** Automatically caches large sparse matrices and genomic metadata into PyArrow-backed Parquet and NumPy formats for near-instant subsequent loads (**~15x faster** than MATLAB).
 *   **Biological Directionality:** Unlike the original version, `pymagical` automatically classifies inferred circuits as **activators (+)** or **repressors (-)** by analyzing continuous regression weights.
 
+## Documentation
+
+For detailed information on setup, biological methodology, and validation, please refer to the following guides:
+
+*   **[Getting Started Tutorial](TUTORIAL.md)**: A complete walkthrough for installing `pymagical` and running your first inference.
+*   **[Statistical Fidelity & Matrix Definitions](docs/statistical_fidelity.md)**: Detailed explanation of $B$ and $L$ matrices and validation against MATLAB.
+*   **[Methodology Overview](docs/methodology.md)**: Technical details on the hierarchical Bayesian Gibbs sampling framework.
+*   **[Performance Report](docs/performance_report.md)**: Benchmarks comparing NumPy and Numba implementations against MATLAB.
+
 ## Installation
 
 The recommended way to install `pymagical` is via [PyPI](https://pypi.org/project/pymagical/):
