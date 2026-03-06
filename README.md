@@ -3,14 +3,14 @@
 `pymagical` is a high-performance Python port of the **MAGICAL** (Multiome Accessibility Gene Integration Calling and Looping) algorithm. It provides a method for inferring functional regulatory circuits—triads of Transcription Factors (TFs), cis-regulatory elements (Peaks), and target Genes—from single-cell RNA-seq and ATAC-seq data.
 
 The methodology is based on the framework described in:
-> **Chen et al., "Mapping disease regulatory circuits at cell-type resolution from single-cell multiomics data," *Nature Computational Science*, 2023.**
+> **Chen et al., "Mapping disease regulatory circuits at cell-type resolution from single-cell multiomics data" *Nature Computational Science* 2023.**
 > (Available [here](https://www.nature.com/articles/s43588-023-00476-5))
 
 ## Key Features
 
-*   **Numba-Accelerated Sampling:** Optional JIT-compiled kernels provide a **~30x speedup** in Gibbs sampling compared to the original MATLAB implementation (averaged across large-scale benchmarks).
 *   **IO Caching:** Automatically caches large sparse matrices and genomic metadata into PyArrow-backed Parquet and NumPy formats for near-instant subsequent loads (**~15x faster** than MATLAB).
-*   **Biological Directionality:** Unlike the original version, `pymagical` automatically classifies inferred circuits as **activators (+)** or **repressors (-)** by analyzing continuous regression weights.
+*   **Numba-Accelerated Sampling:** Utilizes JIT-compiled kernels to provide a **~30x speedup** in Gibbs sampling compared to the original MATLAB implementation (averaged across large-scale benchmarks).
+*   **Biological Directionality:** Classifies inferred circuits as **activators (+)** or **repressors (-)** by analyzing continuous regression weights.
 
 ## Documentation
 
