@@ -206,22 +206,17 @@
 <main class="app-shell">
     <section class="hero">
         <div>
+            <!-- <p class="kicker">Bioinformatics Dashboard</p> -->
             <h1>MAGICAL Circuit Dashboard</h1>
-            <p style="margin:0; color:var(--muted)">Interactive explorer for regulatory circuits.</p>
+            <p style="margin:0; color:var(--muted)">Inferred regulatory circuit dashboard.</p>
         </div>
         
         <div class="controls-row">
             <div class="selector-box">
                 <label for="dataset-select" class="kicker">Select Result Set</label>
-                <div style="display: flex; gap: 0.5rem;">
-                    <select id="dataset-select" style="flex: 1;">
-                        <option value="" disabled selected>Loading datasets...</option>
-                    </select>
-                    <button class="btn-reset" style="display: block; margin-top: 0; padding: 0.4rem 0.8rem; white-space: nowrap;" 
-                            onclick="document.getElementById('folder-input').click()" 
-                            title="Scan a local folder for new .txt results">+ Scan Folder</button>
-                    <input type="file" id="folder-input" class="hidden" webkitdirectory directory onchange="handleFolderScan(event)">
-                </div>
+                <select id="dataset-select">
+                    <option value="" disabled selected>Loading datasets...</option>
+                </select>
             </div>
             <button id="reset-btn" class="btn-reset" onclick="resetSearch()">Clear Filters</button>
         </div>
@@ -230,12 +225,8 @@
     <div id="results-area" class="hidden" style="display: grid; gap: 1.5rem;">
         <section class="stats-grid">
             <div class="card stat-card">
-                <div class="stat-value" id="stat-triads">0</div>
-                <div class="stat-label">Regulatory Triads</div>
-            </div>
-            <div class="card stat-card">
-                <div class="stat-value" id="stat-links">0</div>
-                <div class="stat-label">Functional Links</div>
+                <div class="stat-value" id="stat-circuits">0</div>
+                <div class="stat-label">Inferred Circuits</div>
             </div>
             <div class="card stat-card">
                 <div class="stat-value" id="stat-genes">0</div>
@@ -279,7 +270,7 @@
     </div>
 
     <div id="empty-state" class="card" style="text-align: center; padding: 4rem;">
-        <p style="color: var(--muted); font-size: 1.2rem;">Select a results folder to begin exploring.</p>
+        <p style="color: var(--muted); font-size: 1.2rem;">Please run <code>python update_ui.py</code> to load your data.</p>
     </div>
 </main>
 
@@ -390,10 +381,6 @@
     function renderDashboard(data) {
         updateStats(data);
 
-        if ($.fn.DataTable.isDataTable('#triad-table')) {
-            $('#triad-table').DataTable().destroy();
-        }
-
         const tableBody = document.getElementById('table-body');
         tableBody.innerHTML = data.map(d => {
             const effectTag = d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu');
@@ -410,20 +397,24 @@
             `;
         }).join('');
 
+        if ($.fn.DataTable.isDataTable('#triad-table')) {
+            $('#triad-table').DataTable().destroy();
+        }
+        
         const table = $('#triad-table').DataTable({
             order: [[3, 'desc']],
             pageLength: 25,
             dom: '<"top"f>rt<"bottom"lip><"clear">'
         });
 
+        // Update stats and Reset button visibility based on search results
         table.on('search.dt', () => {
-            const filteredRows = table.rows({ filter: 'applied' }).data().toArray();
-            const filteredData = filteredRows.map(row => {
-                // Mapping DataTable DOM content back to objects for calculation
+            const filteredData = table.rows({ filter: 'applied' }).data().toArray().map(row => {
+                // Map the DOM array back to our data objects for stat calculation
+                // Row data from DT is array of strings [GeneHTML, TFHTML, EffectHTML, Prob, L, B, Peak]
                 return {
                     gene: row[0].replace(/<[^>]*>/g, ''),
-                    tf: row[1].replace(/<[^>]*>/g, ''),
-                    peak: row[6].replace(/<[^>]*>/g, '') // Peak Location is at index 6
+                    tf: row[1].replace(/<[^>]*>/g, '')
                 };
             });
             updateStats(filteredData);
@@ -438,10 +429,7 @@
     function updateStats(data) {
         const uniqueGenes = new Set(data.map(d => d.gene)).size;
         const uniqueTFs = new Set(data.map(d => d.tf)).size;
-        const uniqueLinks = new Set(data.map(d => `${d.gene}|${d.peak}`)).size;
-        
-        document.getElementById('stat-triads').innerText = data.length;
-        document.getElementById('stat-links').innerText = uniqueLinks;
+        document.getElementById('stat-circuits').innerText = data.length;
         document.getElementById('stat-genes').innerText = uniqueGenes;
         document.getElementById('stat-tfs').innerText = uniqueTFs;
     }
@@ -480,7 +468,8 @@
                 "<b>TF: %{text}</b><br>" +
                 "Unique Genes: %{x}<br>" +
                 "Avg. Confidence: %{y:.4f}<br>" +
-                "Total Circuits: %{customdata}<extra></extra>"
+                "Total Circuits: %{customdata}<br>" +
+                "<i style='color:#ccc'>Click to filter table</i><extra></extra>"
         };
 
         const bubbleLayout = {
@@ -506,7 +495,7 @@
             x: data.map(d => d.combinedProb),
             type: 'histogram',
             marker: { color: '#0f766e' },
-            hovertemplate: "Prob: %{x}<br>Count: %{y}<extra></extra>"
+            hovertemplate: "Confidence: %{x}<br>Count: %{y}<extra></extra>"
         };
 
         const distLayout = {
@@ -538,72 +527,26 @@
         try {
             const response = await fetch(`https://mygene.info/v3/query?q=symbol:${symbol}&fields=summary,name,alias&species=human`);
             const result = await response.json();
+            
             if (result.hits && result.hits.length > 0) {
                 const hit = result.hits[0];
                 alias.innerText = hit.alias ? `Aliases: ${Array.isArray(hit.alias) ? hit.alias.join(', ') : hit.alias}` : "";
                 fullname.innerText = hit.name || "";
                 summary.innerText = hit.summary || "No functional summary available for this entry.";
             } else {
-                summary.innerText = "No specific biological summary found.";
+                summary.innerText = "No specific biological summary found for this symbol in the human database.";
                 alias.innerText = "";
             }
         } catch (err) {
             summary.innerText = "Error connecting to the biological database.";
+            console.error(err);
         }
     }
 
     function closeModal() {
         document.getElementById('bio-modal').style.display = 'none';
     }
-
-    // --- Dynamic Folder Scan ---
-    function handleFolderScan(event) {
-        const files = event.target.files;
-        if (!files.length) return;
-
-        if (!window.MAGICAL_RESULTS) window.MAGICAL_RESULTS = {};
-        
-        let filesProcessed = 0;
-        let firstNewKey = null;
-        
-        const validFiles = Array.from(files).filter(f => 
-            f.name.endsWith('.txt') && 
-            !f.name.includes('_B_history') && 
-            !f.name.includes('_L_history') && 
-            !f.name.includes('_timing_stats')
-        );
-
-        if (validFiles.length === 0) {
-            alert("No valid MAGICAL result files (.txt) found in that folder.");
-            return;
-        }
-
-        validFiles.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const content = e.target.result;
-                const key = file.name.replace('.txt', '');
-                window.MAGICAL_RESULTS[key] = content;
-                if (!firstNewKey) firstNewKey = key;
-                filesProcessed++;
-                if (filesProcessed === validFiles.length) {
-                    refreshDatasetSelector(firstNewKey);
-                }
-            };
-            reader.readAsText(file);
-        });
-    }
-
-    function refreshDatasetSelector(switchToKey) {
-        emptyState.classList.add('hidden');
-        resultsArea.classList.remove('hidden');
-        const keys = Object.keys(window.MAGICAL_RESULTS).sort();
-        datasetSelect.innerHTML = keys.map(k => `<option value="${k}">${k}</option>`).join('');
-        if (switchToKey) {
-            datasetSelect.value = switchToKey;
-            loadDataset(switchToKey);
-        }
-    }
 </script>
+
 </body>
 </html>
