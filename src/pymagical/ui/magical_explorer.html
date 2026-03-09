@@ -230,8 +230,12 @@
     <div id="results-area" class="hidden" style="display: grid; gap: 1.5rem;">
         <section class="stats-grid">
             <div class="card stat-card">
-                <div class="stat-value" id="stat-circuits">0</div>
-                <div class="stat-label">Inferred Circuits</div>
+                <div class="stat-value" id="stat-triads">0</div>
+                <div class="stat-label">Regulatory Triads</div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-value" id="stat-links">0</div>
+                <div class="stat-label">Functional Links</div>
             </div>
             <div class="card stat-card">
                 <div class="stat-value" id="stat-genes">0</div>
@@ -415,12 +419,15 @@
         table.on('search.dt', () => {
             const filteredRows = table.rows({ filter: 'applied' }).data().toArray();
             const filteredData = filteredRows.map(row => {
+                // Mapping DataTable DOM content back to objects for calculation
                 return {
                     gene: row[0].replace(/<[^>]*>/g, ''),
-                    tf: row[1].replace(/<[^>]*>/g, '')
+                    tf: row[1].replace(/<[^>]*>/g, ''),
+                    peak: row[6].replace(/<[^>]*>/g, '') // Peak Location is at index 6
                 };
             });
             updateStats(filteredData);
+            
             const isSearching = table.search() !== "";
             document.getElementById('reset-btn').style.display = isSearching ? 'block' : 'none';
         });
@@ -431,7 +438,10 @@
     function updateStats(data) {
         const uniqueGenes = new Set(data.map(d => d.gene)).size;
         const uniqueTFs = new Set(data.map(d => d.tf)).size;
-        document.getElementById('stat-circuits').innerText = data.length;
+        const uniqueLinks = new Set(data.map(d => `${d.gene}|${d.peak}`)).size;
+        
+        document.getElementById('stat-triads').innerText = data.length;
+        document.getElementById('stat-links').innerText = uniqueLinks;
         document.getElementById('stat-genes').innerText = uniqueGenes;
         document.getElementById('stat-tfs').innerText = uniqueTFs;
     }
@@ -465,7 +475,12 @@
                 showscale: true,
                 colorbar: { title: 'Genes', thickness: 15 },
                 opacity: 0.7
-            }
+            },
+            hovertemplate: 
+                "<b>TF: %{text}</b><br>" +
+                "Unique Genes: %{x}<br>" +
+                "Avg. Confidence: %{y:.4f}<br>" +
+                "Total Circuits: %{customdata}<extra></extra>"
         };
 
         const bubbleLayout = {
@@ -490,7 +505,8 @@
         const distTrace = {
             x: data.map(d => d.combinedProb),
             type: 'histogram',
-            marker: { color: '#0f766e' }
+            marker: { color: '#0f766e' },
+            hovertemplate: "Prob: %{x}<br>Count: %{y}<extra></extra>"
         };
 
         const distLayout = {
@@ -526,13 +542,13 @@
                 const hit = result.hits[0];
                 alias.innerText = hit.alias ? `Aliases: ${Array.isArray(hit.alias) ? hit.alias.join(', ') : hit.alias}` : "";
                 fullname.innerText = hit.name || "";
-                summary.innerText = hit.summary || "No summary available.";
+                summary.innerText = hit.summary || "No functional summary available for this entry.";
             } else {
-                summary.innerText = "No biological summary found.";
+                summary.innerText = "No specific biological summary found.";
                 alias.innerText = "";
             }
         } catch (err) {
-            summary.innerText = "Error connecting to database.";
+            summary.innerText = "Error connecting to the biological database.";
         }
     }
 
@@ -558,7 +574,7 @@
         );
 
         if (validFiles.length === 0) {
-            alert("No valid .txt files found in that folder.");
+            alert("No valid MAGICAL result files (.txt) found in that folder.");
             return;
         }
 
