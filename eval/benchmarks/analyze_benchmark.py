@@ -51,7 +51,7 @@ def calculate_jaccard(set1, set2):
     union = len(set1.union(set2))
     return intersection / union if union > 0 else 0.0
 
-def calculate_matrix_correlation(df1, df2):
+def calculate_matrix_correlation(df1, df2, nonzero_only=False):
     """Calculate Pearson correlation between two matrices (common indices/columns)."""
     if df1 is None or df2 is None:
         return np.nan
@@ -65,6 +65,13 @@ def calculate_matrix_correlation(df1, df2):
     v1 = df1.loc[common_rows, common_cols].values.flatten()
     v2 = df2.loc[common_rows, common_cols].values.flatten()
     
+    if nonzero_only:
+        mask = (v1 != 0) | (v2 != 0)
+        if not np.any(mask):
+            return 1.0
+        v1 = v1[mask]
+        v2 = v2[mask]
+
     if np.all(v1 == v1[0]) or np.all(v2 == v2[0]):
         return 1.0 if np.all(v1 == v2) else 0.0
     
@@ -154,6 +161,8 @@ def main():
                 recovery = len(ml_run["circuits"].intersection(py_run["circuits"])) / len(ml_run["circuits"]) if ml_run["circuits"] else 1.0
                 b_corr = calculate_matrix_correlation(ml_run["b_matrix"], py_run["b_matrix"])
                 l_corr = calculate_matrix_correlation(ml_run["l_matrix"], py_run["l_matrix"])
+                b_corr_nz = calculate_matrix_correlation(ml_run["b_matrix"], py_run["b_matrix"], nonzero_only=True)
+                l_corr_nz = calculate_matrix_correlation(ml_run["l_matrix"], py_run["l_matrix"], nonzero_only=True)
                 
                 fidelity_data.append({
                     "Dataset": ds,
@@ -162,7 +171,9 @@ def main():
                     "Jaccard_to_MATLAB": jaccard,
                     "Recovery_to_MATLAB": recovery,
                     "B_Corr_to_MATLAB": b_corr,
-                    "L_Corr_to_MATLAB": l_corr
+                    "L_Corr_to_MATLAB": l_corr,
+                    "B_Corr_NZ_to_MATLAB": b_corr_nz,
+                    "L_Corr_NZ_to_MATLAB": l_corr_nz
                 })
     
     if fidelity_data:

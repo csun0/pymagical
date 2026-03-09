@@ -34,7 +34,13 @@ To ensure the Python port is faithful to the original MATLAB algorithm, we use t
 We calculate the Pearson correlation between the continuous weight matrices of the Python and MATLAB implementations. 
 *   **Standard $R$:** Measures the correlation across all entries. Due to the high sparsity of genomic matrices, this value is often very high ($>0.99$) because both implementations correctly identify most entries as zero.
 *   **Non-Zero $R$:** A more rigorous metric that filters for entries that are non-zero in *at least one* implementation. This directly measures the fidelity of the inferred weights for active circuits. 
-    *   *Empirical Result (Astrocytes):* Standard $R \approx 0.99$, Non-Zero $R \approx 0.97$.
+
+#### Case Study: Astrocytes (5000 Iterations)
+The extreme sparsity of regulatory networks is evident in the Astrocytes results:
+*   **Matrix L (Peak-Gene):** 0.29% density (only 580 non-zero functional links out of 201,600 possibilities).
+*   **Matrix B (TF-Peak):** 13.36% density (7,363 non-zero bindings out of 55,125 possibilities).
+
+In this case, a standard Pearson $R \approx 0.99$ is largely driven by the $>99\%$ of entries that are $(0,0)$. The **Non-Zero $R \approx 0.97$** provides the true proof of fidelity by confirming that the weights for the active 0.29% of circuits are highly consistent.
 
 ### Recovery Rate
 The percentage of circuits identified by the MATLAB implementation that are also found by Python.

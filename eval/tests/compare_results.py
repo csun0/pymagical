@@ -72,8 +72,16 @@ def compare_fidelity(ml_file, py_file, ml_l_mat, py_l_mat, ml_b_mat, py_b_mat):
         l_corr_nz = np.corrcoef(l_val_ml[l_nonzero], l_val_py[l_nonzero])[0,1] if np.any(l_nonzero) else 0
         b_corr_nz = np.corrcoef(b_val_ml[b_nonzero], b_val_py[b_nonzero])[0,1] if np.any(b_nonzero) else 0
 
+        # Density reporting
+        l_dens_py = np.count_nonzero(l_val_py) / len(l_val_py) * 100
+        l_dens_ml = np.count_nonzero(l_val_ml) / len(l_val_ml) * 100
+        b_dens_py = np.count_nonzero(b_val_py) / len(b_val_py) * 100
+        b_dens_ml = np.count_nonzero(b_val_ml) / len(b_val_ml) * 100
+
         print(f"  L matrix (Peak-Gene) Pearson correlation: {l_corr:.4f} (non-zero only: {l_corr_nz:.4f})")
+        print(f"    - Density: Python {l_dens_py:.2f}%, MATLAB {l_dens_ml:.2f}%")
         print(f"  B matrix (TF-Peak) Pearson correlation:   {b_corr:.4f} (non-zero only: {b_corr_nz:.4f})")
+        print(f"    - Density: Python {b_dens_py:.2f}%, MATLAB {b_dens_ml:.2f}%")
     except Exception as e:
         print(f"  Error comparing matrices: {e}")
     
