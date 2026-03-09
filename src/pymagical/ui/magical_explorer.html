@@ -214,9 +214,13 @@
         <div class="controls-row">
             <div class="selector-box">
                 <label for="dataset-select" class="kicker">Select Result Set</label>
-                <select id="dataset-select">
-                    <option value="" disabled selected>Loading datasets...</option>
-                </select>
+                <div style="display: flex; gap: 0.5rem;">
+                    <select id="dataset-select" style="flex: 1;">
+                        <option value="" disabled selected>Loading datasets...</option>
+                    </select>
+                    <button class="btn-reset" style="display: block; margin-top: 0; padding: 0.4rem 0.8rem;" onclick="document.getElementById('local-file-input').click()">+ Load File</button>
+                    <input type="file" id="local-file-input" class="hidden" multiple accept=".txt" onchange="handleLocalFiles(event)">
+                </div>
             </div>
             <button id="reset-btn" class="btn-reset" onclick="resetSearch()">Clear Filters</button>
         </div>
@@ -545,6 +549,47 @@
 
     function closeModal() {
         document.getElementById('bio-modal').style.display = 'none';
+    }
+
+    // --- Dynamic File Loading ---
+    function handleLocalFiles(event) {
+        const files = event.target.files;
+        if (!files.length) return;
+
+        if (!window.MAGICAL_RESULTS) window.MAGICAL_RESULTS = {};
+        
+        let filesProcessed = 0;
+        let firstNewKey = null;
+
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                const key = file.name.replace('.txt', '');
+                
+                window.MAGICAL_RESULTS[key] = content;
+                if (!firstNewKey) firstNewKey = key;
+                
+                filesProcessed++;
+                if (filesProcessed === files.length) {
+                    refreshDatasetSelector(firstNewKey);
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    function refreshDatasetSelector(switchToKey) {
+        emptyState.classList.add('hidden');
+        resultsArea.classList.remove('hidden');
+
+        const keys = Object.keys(window.MAGICAL_RESULTS).sort();
+        datasetSelect.innerHTML = keys.map(k => `<option value="${k}">${k}</option>`).join('');
+        
+        if (switchToKey) {
+            datasetSelect.value = switchToKey;
+            loadDataset(switchToKey);
+        }
     }
 </script>
 
