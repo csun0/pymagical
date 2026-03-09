@@ -92,6 +92,13 @@ def main():
     plot_fidelity_combined(fid_numba, "L_Corr_to_MATLAB", "Fidelity: Looping Matrix (L)\nNumba vs MATLAB", 
                            "fidelity_pearson_l_combined.png", "Pearson r")
 
+    # New Fidelity Plots: Non-Zero only
+    plot_fidelity_combined(fid_numba, "B_Corr_NZ_to_MATLAB", "Fidelity: Binding Matrix (B) [Non-Zero]\nNumba vs MATLAB", 
+                           "fidelity_pearson_b_nz_combined.png", "Pearson r (NZ)")
+    
+    plot_fidelity_combined(fid_numba, "L_Corr_NZ_to_MATLAB", "Fidelity: Looping Matrix (L) [Non-Zero]\nNumba vs MATLAB", 
+                           "fidelity_pearson_l_nz_combined.png", "Pearson r (NZ)")
+
     # --- Keep the original speed plot structure but maybe update to reflect user preference if needed ---
     # The user didn't explicitly ask to change the speed plots, but usually combined is better.
     # For now, I will keep the original speed plots as they were 3x2 grids unless asked otherwise.

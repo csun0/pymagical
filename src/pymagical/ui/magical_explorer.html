@@ -381,7 +381,14 @@
     function renderDashboard(data) {
         updateStats(data);
 
+        const tableId = '#triad-table';
         const tableBody = document.getElementById('table-body');
+
+        // Destroy existing DataTable before modifying DOM
+        if ($.fn.DataTable.isDataTable(tableId)) {
+            $(tableId).DataTable().destroy();
+        }
+        
         tableBody.innerHTML = data.map(d => {
             const effectTag = d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu');
             return `
@@ -397,11 +404,7 @@
             `;
         }).join('');
 
-        if ($.fn.DataTable.isDataTable('#triad-table')) {
-            $('#triad-table').DataTable().destroy();
-        }
-        
-        const table = $('#triad-table').DataTable({
+        const table = $(tableId).DataTable({
             order: [[3, 'desc']],
             pageLength: 25,
             dom: '<"top"f>rt<"bottom"lip><"clear">'
@@ -410,8 +413,6 @@
         // Update stats and Reset button visibility based on search results
         table.on('search.dt', () => {
             const filteredData = table.rows({ filter: 'applied' }).data().toArray().map(row => {
-                // Map the DOM array back to our data objects for stat calculation
-                // Row data from DT is array of strings [GeneHTML, TFHTML, EffectHTML, Prob, L, B, Peak]
                 return {
                     gene: row[0].replace(/<[^>]*>/g, ''),
                     tf: row[1].replace(/<[^>]*>/g, '')
