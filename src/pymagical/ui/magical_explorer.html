@@ -319,6 +319,12 @@
         const rawText = window.MAGICAL_RESULTS[key];
         if (!rawText) return;
 
+        // Force reset existing table if it exists
+        if ($.fn.DataTable.isDataTable('#triad-table')) {
+            const table = $('#triad-table').DataTable();
+            table.search('').draw();
+        }
+
         const lines = rawText.trim().split('\n');
         const data = [];
 
@@ -379,13 +385,12 @@
     }
 
     function renderDashboard(data) {
-        updateStats(data);
-
         const tableId = '#triad-table';
         const tableBody = document.getElementById('table-body');
 
-        // Destroy existing DataTable before modifying DOM
+        // Fully destroy existing DataTable instance before re-initializing
         if ($.fn.DataTable.isDataTable(tableId)) {
+            $(tableId).DataTable().off('draw'); // Clear listeners
             $(tableId).DataTable().destroy();
         }
         
@@ -410,19 +415,21 @@
             dom: '<"top"f>rt<"bottom"lip><"clear">'
         });
 
-        // Update stats and Reset button visibility based on search results
-        table.on('search.dt', () => {
-            const filteredData = table.rows({ filter: 'applied' }).data().toArray().map(row => {
-                return {
-                    gene: row[0].replace(/<[^>]*>/g, ''),
-                    tf: row[1].replace(/<[^>]*>/g, '')
-                };
-            });
+        // Use 'draw' event as the definitive trigger for stats sync
+        table.on('draw.dt', () => {
+            const filteredRows = table.rows({ filter: 'applied' }).data().toArray();
+            const filteredData = filteredRows.map(row => ({
+                gene: row[0].replace(/<[^>]*>/g, ''), // Strip strong/span tags
+                tf: row[1].replace(/<[^>]*>/g, '')
+            }));
             updateStats(filteredData);
             
             const isSearching = table.search() !== "";
             document.getElementById('reset-btn').style.display = isSearching ? 'block' : 'none';
         });
+
+        // Run once for the new dataset's initial state
+        table.draw();
 
         renderPlots(data);
     }
