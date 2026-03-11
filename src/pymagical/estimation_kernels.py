@@ -32,11 +32,12 @@ def sample_b_state_kernel(
                 mean_b = (dot_val * b_var[m] / S + b_mean_T[m, p] * sigma_a_noise) / temp_var
                 variance_b = b_var[m] * sigma_a_noise / temp_var
                 
+                # Match MATLAB exactly: likelihood of current weight vs likelihood of 0
                 post_b1 = np.exp(-(b_T[m, p] - mean_b)**2 / (2 * variance_b)) * (b_prob_T[m, p] + 0.25) + 1e-6
-                post_b0 = np.exp(-mean_b**2 / (2 * variance_b)) * (1.0 - b_prob_T[m, p] + 0.25) + 1e-6
+                post_b0 = np.exp(-(0.0 - mean_b)**2 / (2 * variance_b)) * (1.0 - b_prob_T[m, p] + 0.25) + 1e-6
                 
                 prob_1 = post_b1 / (post_b1 + post_b0)
-                if np.random.random() > prob_1:
+                if np.random.random() >= prob_1:
                     for s in range(S):
                         temp[s] -= b_T[m, p] * tm[s]
                     b_T[m, p] = 0.0
@@ -53,10 +54,10 @@ def sample_b_state_kernel(
                 b_temp = _clip(np.random.standard_normal(), -3.0, 3.0) * np.sqrt(variance_b) + mean_b
                 
                 post_b1 = np.exp(-(b_temp - mean_b)**2 / (2 * variance_b)) * (b_prob_T[m, p] + 0.25) + 1e-6
-                post_b0 = np.exp(-mean_b**2 / (2 * variance_b)) * (1.0 - b_prob_T[m, p] + 0.25) + 1e-6
+                post_b0 = np.exp(-(0.0 - mean_b)**2 / (2 * variance_b)) * (1.0 - b_prob_T[m, p] + 0.25) + 1e-6
                 
                 prob_1 = post_b1 / (post_b1 + post_b0)
-                if np.random.random() <= prob_1:
+                if np.random.random() < prob_1:
                     b_T[m, p] = b_temp
                     b_state_T[m, p] = 1.0
                     for s in range(S):
@@ -88,10 +89,10 @@ def sample_l_state_kernel(
                 variance_l = l_var * sigma_r_noise / temp_var
                 
                 post_l1 = np.exp(-(l_T[g, p] - mean_l)**2 / (2 * variance_l)) * (l_prob_T[g, p] + 0.1) + 1e-6
-                post_l0 = np.exp(-mean_l**2 / (2 * variance_l)) * (1.0 - l_prob_T[g, p] + 0.1) + 1e-6
+                post_l0 = np.exp(-(0.0 - mean_l)**2 / (2 * variance_l)) * (1.0 - l_prob_T[g, p] + 0.1) + 1e-6
                 
                 prob_1 = post_l1 / (post_l1 + post_l0)
-                if np.random.random() > prob_1:
+                if np.random.random() >= prob_1:
                     for s in range(S):
                         temp[s] -= l_T[g, p] * ap[s]
                     l_T[g, p] = 0.0
@@ -107,10 +108,10 @@ def sample_l_state_kernel(
                 l_temp = _clip(np.random.standard_normal(), -3.0, 3.0) * np.sqrt(variance_l) + mean_l
                 
                 post_l1 = np.exp(-(l_temp - mean_l)**2 / (2 * variance_l)) * (l_prob_T[g, p] + 0.1) + 1e-6
-                post_l0 = np.exp(-mean_l**2 / (2 * variance_l)) * (1.0 - l_prob_T[g, p] + 0.1) + 1e-6
+                post_l0 = np.exp(-(0.0 - mean_l)**2 / (2 * variance_l)) * (1.0 - l_prob_T[g, p] + 0.1) + 1e-6
                 
                 prob_1 = post_l1 / (post_l1 + post_l0)
-                if np.random.random() <= prob_1:
+                if np.random.random() < prob_1:
                     l_T[g, p] = l_temp
                     l_state_T[g, p] = 1.0
                     for s in range(S):

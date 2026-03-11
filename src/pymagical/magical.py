@@ -16,11 +16,15 @@ def run_magical(
     atac_counts_file, atac_peaks_file, atac_meta_file,
     motif_mapping_file, motif_name_file,
     tad_flag, tad_file, refseq_file,
-    output_file, iteration_num, dump_weight_history=False,
+    output_file, iteration_num, burn_in=None, dump_weight_history=False,
     use_numba=False
 ):
     timing = {}
     
+    # Default burn-in: 20% of iterations
+    if burn_in is None:
+        burn_in = iteration_num // 5
+
     t_start = time.time()
     print('loading all input data ...\n')
     cand_genes = load_candidate_genes(cand_gene_file)
@@ -87,7 +91,8 @@ def run_magical(
         t_a_prior, t_r_prior, t_sample_mean, t_sample_var,
         b_prior, b_mean, b_var, b_prob,
         l_prior, l_mean, l_var, l_prob,
-        M, S, P, G, iteration_num, dump_weight_history,
+        M, S, P, G, iteration_num, burn_in=burn_in,
+        dump_weight_history=dump_weight_history,
         use_numba=use_numba
     )
     timing[f'Gibbs Sampling ({iteration_num} iters)'] = time.time() - t_stage

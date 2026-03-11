@@ -38,10 +38,12 @@ def construct_candidate_circuits_with_tad(
     
     # TF enrichment: (tf_num / cand_peaks) / (total_tf_bindings / total_atac_peaks)
     total_tf_bindings = np.array(tf_peak_binding_matrix.sum(axis=0)).flatten()
-    # Avoid division by zero
     bg_freq = total_tf_bindings / total_atac_peaks
-    bg_freq[bg_freq == 0] = 1.0 # prevent nan
-    tf_enrichment_fc = (tf_num / num_peaks) / bg_freq
+    
+    # Match MATLAB: if a TF has 0 background frequency, enrichment is effectively 0 (was NaN in MATLAB)
+    tf_enrichment_fc = np.zeros_like(tf_num, dtype=float)
+    valid_bg = bg_freq > 0
+    tf_enrichment_fc[valid_bg] = (tf_num[valid_bg] / num_peaks) / bg_freq[valid_bg]
     
     pct_threshold = 0.05
     num_threshold = 30

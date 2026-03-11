@@ -9,6 +9,7 @@ def main():
     # --- Run Command ---
     run_parser = subparsers.add_parser("run", help="Run MAGICAL inference (default if no command given)")
     run_parser.add_argument("--iter", type=int, default=500, help="Number of Gibbs sampling iterations (default: 500)")
+    run_parser.add_argument("--burn-in", type=int, default=None, help="Number of burn-in iterations to discard (default: 20%% of iter)")
     run_parser.add_argument("--outdir", type=str, default="outputs", help="Output directory for results")
     run_parser.add_argument("--prefix", type=str, default="magical", help="Prefix for output filenames (default: magical)")
     run_parser.add_argument("--dump-weights", action="store_true", help="Dump history of continuous B and L weights as .npy files")

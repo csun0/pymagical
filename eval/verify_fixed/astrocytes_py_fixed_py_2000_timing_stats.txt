@@ -1,0 +1,4 @@
+Data Loading: 3.726048
+Circuit Construction: 2.846879
+Initialization (OLS): 2.343390
+Gibbs Sampling (2000 iters): 381.273700

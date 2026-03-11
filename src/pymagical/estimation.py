@@ -186,7 +186,7 @@ def magical_estimation(
     t_a_prior, t_r_prior, t_prior_mean, t_prior_var,
     b_prior, b_mean, b_var, b_prob,
     l_prior, l_mean, l_var, l_prob,
-    M, S, P, G, iteration_num,
+    M, S, P, G, iteration_num, burn_in=0,
     dump_weight_history=False,
     use_numba=False
 ):
@@ -195,9 +195,9 @@ def magical_estimation(
         use_numba = False
 
     if use_numba:
-        print("Using Numba-accelerated kernels.")
+        print(f"Using Numba-accelerated kernels (Burn-in: {burn_in}).")
     else:
-        print("Using standard NumPy implementation.")
+        print(f"Using standard NumPy implementation (Burn-in: {burn_in}).")
 
     print("MAGICAL work starts...")
     
@@ -253,11 +253,17 @@ def magical_estimation(
         b_state_T = np.ascontiguousarray(b_state.T) # (M, P)
         l_state_T = np.ascontiguousarray(l_state.T) # (G, P)
         
+    # Initialize accumulators with zeros (Burn-in handling)
     b_state_frq = np.zeros_like(b_state)
     l_state_frq = np.zeros_like(l_state)
     
-    b_weight_sum = np.zeros_like(b_prior)
-    l_weight_sum = np.zeros_like(l_prior)
+    b_weight_sum = np.zeros_like(b)
+    l_weight_sum = np.zeros_like(l)
+    
+    # NumPy sign consistency accumulators
+    if not use_numba:
+        b_pos_count_np = np.zeros_like(b_state)
+        l_pos_count_np = np.zeros_like(l_state)
     
     if dump_weight_history:
         b_history = np.zeros((iteration_num, P, M), dtype=np.float32)
@@ -353,13 +359,24 @@ def magical_estimation(
             rss_r = np.sum((r_sample - l.T @ (b @ t_sample))**2)
             scale_r = 1.0 / (beta_r + rss_r / (2*G*S))
             sigma_r_noise = 1.0 / np.random.gamma(shape=alpha_r + 0.5, scale=scale_r)
+            
+            # Accumulate sign consistency for NumPy path
+            if i >= burn_in:
+                b_pos_count_np[b > 0] += 1
+                l_pos_count_np[l > 0] += 1
         
-        # Summary
-        b_state_frq += b_state
-        l_state_frq += l_state
-        
-        b_weight_sum += b
-        l_weight_sum += l
+        # Reset Numba-based accumulators at the end of burn-in
+        if use_numba and i == burn_in - 1:
+            b_pos_count.fill(0)
+            l_pos_count.fill(0)
+
+        # Summary - only after burn-in
+        if i >= burn_in:
+            b_state_frq += b_state
+            l_state_frq += l_state
+            
+            b_weight_sum += b
+            l_weight_sum += l
         
         if dump_weight_history:
             b_history[i, :, :] = b
@@ -368,18 +385,21 @@ def magical_estimation(
         if (i + 1) % iteration_seg == 0:
             print(f"MAGICAL finished {int(100 * (i + 1) / iteration_num)} percent")
             
-    cand_tf_peak_binding_prob = b_state_frq / iteration_num
-    cand_peak_gene_looping_prob = l_state_frq / iteration_num
+    num_samples_collected = iteration_num - burn_in
+    if num_samples_collected <= 0:
+        raise ValueError("Burn-in period must be less than total iterations.")
+
+    cand_tf_peak_binding_prob = b_state_frq / num_samples_collected
+    cand_peak_gene_looping_prob = l_state_frq / num_samples_collected
     
-    cand_tf_peak_binding_weight = b_weight_sum / iteration_num
-    cand_peak_gene_looping_weight = l_weight_sum / iteration_num
+    cand_tf_peak_binding_weight = b_weight_sum / num_samples_collected
+    cand_peak_gene_looping_weight = l_weight_sum / num_samples_collected
     
     if use_numba:
-        b_pos_prob = b_pos_count.T / iteration_num
-        l_pos_prob = l_pos_count.T / iteration_num
+        b_pos_prob = b_pos_count.T / num_samples_collected
+        l_pos_prob = l_pos_count.T / num_samples_collected
     else:
-        # For numpy, return zeros for now
-        b_pos_prob = np.zeros_like(cand_tf_peak_binding_prob)
-        l_pos_prob = np.zeros_like(cand_peak_gene_looping_prob)
+        b_pos_prob = b_pos_count_np / num_samples_collected
+        l_pos_prob = l_pos_count_np / num_samples_collected
     
     return cand_tf_peak_binding_prob, cand_peak_gene_looping_prob, cand_tf_peak_binding_weight, cand_peak_gene_looping_weight, b_history, l_history, b_pos_prob, l_pos_prob
