@@ -27,6 +27,7 @@ function matlab_runner(dataset_name, iteration_num, output_label)
     addpath(fullfile(pwd, 'src/matlabmagical'));
 
     fprintf('Starting MATLAB MAGICAL with %d iterations...\n', iteration_num);
+    rng('shuffle');
 
     % --- Data Loading ---
     tic;

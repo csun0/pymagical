@@ -51,9 +51,14 @@ def initialize_magical(
             b_prior[p_idx, t_idx] = 0.0
             b_prob[p_idx, t_idx] = 0.0
             
+    if hasattr(cand_tf_peak_binding, 'toarray'):
+        binding_mask = cand_tf_peak_binding.toarray() > 0
+    else:
+        binding_mask = cand_tf_peak_binding > 0
+
     b_mean = b_prior.copy()
     for m in range(M):
-        mask = b_prior[:, m] > 0
+        mask = binding_mask[:, m]
         if np.any(mask):
             b_var[m] = np.var(b_prior[mask, m], ddof=1)
         if np.isnan(b_var[m]) or b_var[m] == 0:
@@ -86,7 +91,7 @@ def initialize_magical(
     l_mean = l_prior.copy()
     nonzero_l = l_prior[l_prior != 0]
     if len(nonzero_l) > 1:
-        l_var = np.var(nonzero_l, ddof=1)
+        l_var = np.var(nonzero_l)
     else:
         l_var = 1.0
         

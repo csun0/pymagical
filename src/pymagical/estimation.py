@@ -150,8 +150,8 @@ def peak_gene_binary_looping_l_state_sampling(rna_cell_vector, r_sample, l, b, t
                 mean_l = ((r_sample[g, :] - temp + l[p, g]*ap) @ ap * l_var / S + l_mean[p, g]*sigma_r_noise) / temp_var
                 variance_l = l_var * sigma_r_noise / temp_var
                 
-                post_l1 = np.exp(-(l[p, g]*1 - mean_l)**2 / (2*variance_l)) * (l_prob[p, g] + 0.1) + 1e-6
-                post_l0 = np.exp(-(l[p, g]*0 - mean_l)**2 / (2*variance_l)) * (1 - l_prob[p, g] + 0.1) + 1e-6
+                post_l1 = np.exp(-(l[p, g]*1 - mean_l)**2 / (2*variance_l)) * (l_prob[p, g] + 0.25) + 1e-6
+                post_l0 = np.exp(-(l[p, g]*0 - mean_l)**2 / (2*variance_l)) * (1 - l_prob[p, g] + 0.25) + 1e-6
                 
                 p1 = post_l1 / (post_l1 + post_l0)
                 if p1 < np.random.rand():
@@ -166,8 +166,8 @@ def peak_gene_binary_looping_l_state_sampling(rna_cell_vector, r_sample, l, b, t
                 ll = np.clip(ll, -3, 3)
                 l_temp = ll * np.sqrt(variance_l) + mean_l
                 
-                post_l1 = np.exp(-(l_temp*1 - mean_l)**2 / (2*variance_l)) * (l_prob[p, g] + 0.1) + 1e-6
-                post_l0 = np.exp(-(l_temp*0 - mean_l)**2 / (2*variance_l)) * (1 - l_prob[p, g] + 0.1) + 1e-6
+                post_l1 = np.exp(-(l_temp*1 - mean_l)**2 / (2*variance_l)) * (l_prob[p, g] + 0.25) + 1e-6
+                post_l0 = np.exp(-(l_temp*0 - mean_l)**2 / (2*variance_l)) * (1 - l_prob[p, g] + 0.25) + 1e-6
                 
                 p1 = post_l1 / (post_l1 + post_l0)
                 if p1 >= np.random.rand():
@@ -233,7 +233,9 @@ def magical_estimation(
         
         # Sign consistency accumulators
         b_pos_count = np.zeros((M, P))
+        b_pos_count[b.T > 0] = 1.0
         l_pos_count = np.zeros((G, P))
+        l_pos_count[l.T > 0] = 1.0
     else:
         a_sample_opt = a_sample
         r_sample_opt = r_sample
@@ -253,17 +255,20 @@ def magical_estimation(
         b_state_T = np.ascontiguousarray(b_state.T) # (M, P)
         l_state_T = np.ascontiguousarray(l_state.T) # (G, P)
         
-    # Initialize accumulators with zeros (Burn-in handling)
-    b_state_frq = np.zeros_like(b_state)
-    l_state_frq = np.zeros_like(l_state)
+    # Initialize accumulators with the initial state (Matches MATLAB bias)
+    b_state_frq = b_state.copy()
+    l_state_frq = l_state.copy()
     
-    b_weight_sum = np.zeros_like(b)
-    l_weight_sum = np.zeros_like(l)
+    b_weight_sum = b.copy()
+    l_weight_sum = l.copy()
     
     # NumPy sign consistency accumulators
     if not use_numba:
         b_pos_count_np = np.zeros_like(b_state)
+        b_pos_count_np[b > 0] = 1.0
         l_pos_count_np = np.zeros_like(l_state)
+        l_pos_count_np[l > 0] = 1.0
+
     
     if dump_weight_history:
         b_history = np.zeros((iteration_num, P, M), dtype=np.float32)
@@ -272,13 +277,18 @@ def magical_estimation(
         b_history = None
         l_history = None
     
+    # MATLAB uses the prior to initialize noise variance
+    # B_prior is (P, M), t_prior_mean is (M, S)
     alpha_a = 1.0
     beta_a = 1.0
-    sigma_a_noise = np.var(a_sample - b_prior @ t_prior_mean, ddof=1)
+    # Use B_prior @ t_prior_mean which only counts linked motifs
+    pred_a = b_prior @ t_prior_mean
+    sigma_a_noise = np.var(a_sample - pred_a)
     
     alpha_r = 1.0
     beta_r = 1.0
-    sigma_r_noise = np.var(r_sample - l_prior.T @ (b_prior @ t_prior_mean), ddof=1)
+    pred_r = l_prior.T @ pred_a
+    sigma_r_noise = np.var(r_sample - pred_r)
     
     iteration_seg = max(1, iteration_num // 10)
     
@@ -287,7 +297,7 @@ def magical_estimation(
             # Step 1: TF activity
             tf_index = np.random.permutation(M)
             t_sample = sample_t_kernel(a_sample_opt, b_T, t_sample, t_prior_mean, t_prior_var, sigma_a_noise, tf_index, M, S, P)
-            t_a, t_r = update_ta_tr_kernel(t_a, t_r, atac_cell_vector, rna_cell_vector, t_sample, t_prior_var[0], M, S)
+            t_a, t_r = update_ta_tr_kernel(t_a, t_r, atac_cell_vector, rna_cell_vector, t_sample, t_prior_var, M, S)
             
             # Step 2: TF-peak binding weights
             tf_index = np.random.permutation(M)
@@ -360,23 +370,17 @@ def magical_estimation(
             scale_r = 1.0 / (beta_r + rss_r / (2*G*S))
             sigma_r_noise = 1.0 / np.random.gamma(shape=alpha_r + 0.5, scale=scale_r)
             
-            # Accumulate sign consistency for NumPy path
-            if i >= burn_in:
-                b_pos_count_np[b > 0] += 1
-                l_pos_count_np[l > 0] += 1
+        # Accumulate sign consistency for NumPy path
+        if not use_numba:
+            b_pos_count_np[b > 0] += 1
+            l_pos_count_np[l > 0] += 1
         
-        # Reset Numba-based accumulators at the end of burn-in
-        if use_numba and i == burn_in - 1:
-            b_pos_count.fill(0)
-            l_pos_count.fill(0)
-
-        # Summary - only after burn-in
-        if i >= burn_in:
-            b_state_frq += b_state
-            l_state_frq += l_state
-            
-            b_weight_sum += b
-            l_weight_sum += l
+        # Summary - always accumulate to match MATLAB bias
+        b_state_frq += b_state
+        l_state_frq += l_state
+        
+        b_weight_sum += b
+        l_weight_sum += l
         
         if dump_weight_history:
             b_history[i, :, :] = b
@@ -385,9 +389,9 @@ def magical_estimation(
         if (i + 1) % iteration_seg == 0:
             print(f"MAGICAL finished {int(100 * (i + 1) / iteration_num)} percent")
             
-    num_samples_collected = iteration_num - burn_in
-    if num_samples_collected <= 0:
-        raise ValueError("Burn-in period must be less than total iterations.")
+    # MATLAB divisor is exactly iteration_num, even though it counts the prior too.
+    # This means total samples = iteration_num + 1, but divisor is iteration_num.
+    num_samples_collected = iteration_num
 
     cand_tf_peak_binding_prob = b_state_frq / num_samples_collected
     cand_peak_gene_looping_prob = l_state_frq / num_samples_collected

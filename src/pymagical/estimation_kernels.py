@@ -22,6 +22,7 @@ def sample_b_state_kernel(
         for m in tf_index:
             tm = t_sample[m, :] 
             tm_dot_tm = np.dot(tm, tm)
+            # FIXED: MATLAB uses tm_dot_tm here
             temp_var = (tm_dot_tm * b_var[m] / S) + sigma_a_noise
             
             if b_state_T[m, p] == 1.0:
@@ -32,14 +33,13 @@ def sample_b_state_kernel(
                 mean_b = (dot_val * b_var[m] / S + b_mean_T[m, p] * sigma_a_noise) / temp_var
                 variance_b = b_var[m] * sigma_a_noise / temp_var
                 
-                # Match MATLAB exactly: likelihood of current weight vs likelihood of 0
                 post_b1 = np.exp(-(b_T[m, p] - mean_b)**2 / (2 * variance_b)) * (b_prob_T[m, p] + 0.25) + 1e-6
                 post_b0 = np.exp(-(0.0 - mean_b)**2 / (2 * variance_b)) * (1.0 - b_prob_T[m, p] + 0.25) + 1e-6
                 
                 prob_1 = post_b1 / (post_b1 + post_b0)
                 if np.random.random() >= prob_1:
-                    for s in range(S):
-                        temp[s] -= b_T[m, p] * tm[s]
+                    # for s in range(S):
+                    #     temp[s] -= b_T[m, p] * tm[s]
                     b_T[m, p] = 0.0
                     b_state_T[m, p] = 0.0
                     
@@ -60,8 +60,8 @@ def sample_b_state_kernel(
                 if np.random.random() < prob_1:
                     b_T[m, p] = b_temp
                     b_state_T[m, p] = 1.0
-                    for s in range(S):
-                        temp[s] += b_T[m, p] * tm[s]
+                    # for s in range(S):
+                    #     temp[s] += b_T[m, p] * tm[s]
     return b_state_T, b_T
 
 @njit(fastmath=True, parallel=True)
@@ -78,6 +78,7 @@ def sample_l_state_kernel(
                     
         for p in range(P):
             ap = a_estimate[p, :] 
+            # FIXED: l_var here (pre-calculated ap_dot_ap_arr is used)
             temp_var = ap_dot_ap_arr[p] * l_var / S + sigma_r_noise
             
             if l_state_T[g, p] == 1.0:
@@ -88,13 +89,13 @@ def sample_l_state_kernel(
                 mean_l = (dot_val * l_var / S + l_mean_T[g, p] * sigma_r_noise) / temp_var
                 variance_l = l_var * sigma_r_noise / temp_var
                 
-                post_l1 = np.exp(-(l_T[g, p] - mean_l)**2 / (2 * variance_l)) * (l_prob_T[g, p] + 0.1) + 1e-6
-                post_l0 = np.exp(-(0.0 - mean_l)**2 / (2 * variance_l)) * (1.0 - l_prob_T[g, p] + 0.1) + 1e-6
+                post_l1 = np.exp(-(l_T[g, p] - mean_l)**2 / (2 * variance_l)) * (l_prob_T[g, p] + 0.25) + 1e-6
+                post_l0 = np.exp(-(0.0 - mean_l)**2 / (2 * variance_l)) * (1.0 - l_prob_T[g, p] + 0.25) + 1e-6
                 
                 prob_1 = post_l1 / (post_l1 + post_l0)
                 if np.random.random() >= prob_1:
-                    for s in range(S):
-                        temp[s] -= l_T[g, p] * ap[s]
+                    # for s in range(S):
+                    #     temp[s] -= l_T[g, p] * ap[s]
                     l_T[g, p] = 0.0
                     l_state_T[g, p] = 0.0
             elif l_state_T[g, p] == 0.0 and l_mean_T[g, p] != 0.0:
@@ -107,15 +108,15 @@ def sample_l_state_kernel(
                 
                 l_temp = _clip(np.random.standard_normal(), -3.0, 3.0) * np.sqrt(variance_l) + mean_l
                 
-                post_l1 = np.exp(-(l_temp - mean_l)**2 / (2 * variance_l)) * (l_prob_T[g, p] + 0.1) + 1e-6
-                post_l0 = np.exp(-(0.0 - mean_l)**2 / (2 * variance_l)) * (1.0 - l_prob_T[g, p] + 0.1) + 1e-6
+                post_l1 = np.exp(-(l_temp - mean_l)**2 / (2 * variance_l)) * (l_prob_T[g, p] + 0.25) + 1e-6
+                post_l0 = np.exp(-(0.0 - mean_l)**2 / (2 * variance_l)) * (1.0 - l_prob_T[g, p] + 0.25) + 1e-6
                 
                 prob_1 = post_l1 / (post_l1 + post_l0)
                 if np.random.random() < prob_1:
                     l_T[g, p] = l_temp
                     l_state_T[g, p] = 1.0
-                    for s in range(S):
-                        temp[s] += l_T[g, p] * ap[s]
+                    # for s in range(S):
+                    #     temp[s] += l_T[g, p] * ap[s]
     return l_state_T, l_T
 
 @njit(fastmath=True)
@@ -123,6 +124,7 @@ def sample_b_weight_kernel(
     a_sample_T, b_T, t_sample, b_state_T, b_mean_T, b_var, sigma_a_noise, tf_index, M, S, P,
     b_pos_count
 ):
+    # Vectorized residuals (P x S)
     a_resid_T = a_sample_T - t_sample.T @ b_T
     for m in tf_index:
         tm = t_sample[m, :]
@@ -205,8 +207,9 @@ def sample_t_kernel(
             dot_val = 0.0
             for p in range(P):
                 dot_val += (a_resid_T[s, p] + bm[p] * old_tm_s) * bm[p]
-                
-            mean_val = (dot_val / P + t_mean[m, s] * sigma_a_noise) / temp_var
+            
+            # FIXED: MATLAB uses * t_var(m)/P for the resid part
+            mean_val = (dot_val * t_var[m] / P + t_mean[m, s] * sigma_a_noise) / temp_var
             new_tm_s = _clip(np.random.standard_normal(), -3.0, 3.0) * sqrt_var_t + mean_val
             t_sample[m, s] = new_tm_s
             
@@ -217,9 +220,9 @@ def sample_t_kernel(
     return t_sample
 
 @njit(fastmath=True, parallel=True)
-def update_ta_tr_kernel(t_a, t_r, atac_cell_vector, rna_cell_vector, t_sample, variance_t, M, S):
-    v_t = np.sqrt(variance_t)
+def update_ta_tr_kernel(t_a, t_r, atac_cell_vector, rna_cell_vector, t_sample, t_var, M, S):
     for m in prange(M):
+        v_t = np.sqrt(t_var[m])
         for i in range(atac_cell_vector.shape[0]):
             s = atac_cell_vector[i]
             t_a[m, i] = np.random.standard_normal() * v_t + t_sample[m, s]
