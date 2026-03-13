@@ -70,6 +70,7 @@
         }
 
         h1 { margin: 0.25rem 0; font-size: 2.2rem; }
+        h2 { margin-top: 0; }
 
         .card {
             background: var(--surface);
@@ -193,6 +194,96 @@
         .bio-header h2 { margin: 0; color: var(--accent); }
         .bio-alias { color: var(--muted); font-size: 0.9rem; font-family: "IBM Plex Mono", monospace; }
 
+        /* Toggle Switch Styling */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--muted);
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--line);
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding: 0 0.5rem;
+        }
+
+        .dataTables_filter {
+            float: none !important;
+            text-align: right;
+        }
+        .dataTables_filter input {
+            border: 1px solid var(--line) !important;
+            border-radius: 8px !important;
+            padding: 0.4rem 0.8rem !important;
+            margin-left: 0.5rem !important;
+            font-family: inherit !important;
+            outline: none;
+        }
+        .dataTables_filter input:focus {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 2px var(--accent-soft);
+        }
+
+        td.details-control {
+            background: url('https://datatables.net/examples/resources/details_open.png') no-repeat center center;
+            cursor: pointer;
+            width: 30px;
+        }
+        tr.shown td.details-control {
+            background: url('https://datatables.net/examples/resources/details_close.png') no-repeat center center;
+        }
+        .child-table-container {
+            padding: 1rem;
+            background: #fafbfc;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+        }
+        .child-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .child-table th, .child-table td {
+            padding: 0.4rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+        }
+        .child-table th { color: var(--muted); font-weight: 600; }
+
         .hidden { display: none !important; }
 
         @media (max-width: 900px) {
@@ -238,9 +329,14 @@
             </div>
         </section>
 
+        <section class="card">
+            <h2>Top 10 Most Present Genes</h2>
+            <div id="top-genes-plot" class="plot-container"></div>
+        </section>
+
         <section class="viz-grid">
             <div class="card">
-                <h2>Regulatory Influence Landscape</h2>
+                <h2>TF Landscape</h2>
                 <div id="bubble-plot" class="plot-container"></div>
             </div>
             <div class="card">
@@ -250,9 +346,18 @@
         </section>
 
         <section class="card" id="table-card">
+            <div class="table-header">
+                <div class="toggle-container">
+                    <span>Group by Gene/Peak</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-view-btn" checked onchange="toggleTableView()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
             <div class="table-container">
                 <table id="triad-table" class="display">
-                    <thead>
+                    <thead id="table-head">
                         <tr>
                             <th>Gene</th>
                             <th>TF</th>
@@ -295,6 +400,7 @@
     const resultsArea = document.getElementById('results-area');
     const emptyState = document.getElementById('empty-state');
     let currentData = [];
+    let isTableGrouped = true;
 
     // --- Init ---
     window.onload = () => {
@@ -314,6 +420,11 @@
         datasetSelect.onchange = (e) => loadDataset(e.target.value);
         loadDataset(defaultKey);
     };
+
+    function toggleTableView() {
+        isTableGrouped = document.getElementById('toggle-view-btn').checked;
+        renderDashboard(currentData);
+    }
 
     function loadDataset(key) {
         const rawText = window.MAGICAL_RESULTS[key];
@@ -384,45 +495,169 @@
         renderDashboard(data);
     }
 
+    function formatChildRow(d) {
+        let childHtml = '<div class="child-table-container"><table class="child-table"><thead><tr><th>TF</th><th>Effect</th><th>Circuit Prob</th><th>Looping (L)</th><th>Binding (B)</th></tr></thead><tbody>';
+        d.tfs.forEach(tf => {
+            const effectTag = tf.effect === '+' ? 'tag-pos' : (tf.effect === '-' ? 'tag-neg' : 'tag-neu');
+            childHtml += `<tr>
+                <td><span class="bio-link" onclick="fetchBioInfo('${tf.tf}')">${tf.tf}</span></td>
+                <td><span class="tag ${effectTag}">${tf.effect === '?' ? 'Unknown' : (tf.effect === '+' ? 'Activator' : 'Repressor')}</span></td>
+                <td style="font-family: 'IBM Plex Mono';">${tf.combinedProb.toFixed(4)}</td>
+                <td>${tf.lDir} ${tf.lCons ? `<small style="color:var(--muted)">(${tf.lCons})</small>` : ''}</td>
+                <td>${tf.bDir} ${tf.bCons ? `<small style="color:var(--muted)">(${tf.bCons})</small>` : ''}</td>
+            </tr>`;
+        });
+        childHtml += '</tbody></table></div>';
+        return childHtml;
+    }
+
     function renderDashboard(data) {
         const tableId = '#triad-table';
         const tableBody = document.getElementById('table-body');
+        const tableHead = document.getElementById('table-head');
 
         // Fully destroy existing DataTable instance before re-initializing
         if ($.fn.DataTable.isDataTable(tableId)) {
-            $(tableId).DataTable().off('draw'); // Clear listeners
-            $(tableId).DataTable().destroy();
+            const dt = $(tableId).DataTable();
+            $('#triad-table tbody').off('click', 'td.details-control');
+            dt.off('draw'); // Clear listeners
+            dt.destroy();
         }
         
-        tableBody.innerHTML = data.map(d => {
-            const effectTag = d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu');
-            return `
+        let renderData = [];
+        
+        if (isTableGrouped) {
+            tableHead.innerHTML = `
                 <tr>
-                    <td><strong class="bio-link" onclick="fetchBioInfo('${d.gene}')">${d.gene}</strong></td>
-                    <td><span class="bio-link" onclick="fetchBioInfo('${d.tf}')">${d.tf}</span></td>
-                    <td><span class="tag ${effectTag}">${d.effect === '?' ? 'Unknown' : (d.effect === '+' ? 'Activator' : 'Repressor')}</span></td>
-                    <td style="font-family: 'IBM Plex Mono';">${d.combinedProb.toFixed(4)}</td>
-                    <td>${d.lDir} ${d.lCons ? `<small style="color:var(--muted)">(${d.lCons})</small>` : ''}</td>
-                    <td>${d.bDir} ${d.bCons ? `<small style="color:var(--muted)">(${d.bCons})</small>` : ''}</td>
-                    <td style="font-size: 0.75rem; color: var(--muted); font-family: 'IBM Plex Mono';">${d.peak}</td>
+                    <th></th>
+                    <th>Gene</th>
+                    <th>Peak Location</th>
+                    <th>Total TFs</th>
+                    <th>Max Prob</th>
+                    <th>Avg Prob</th>
                 </tr>
             `;
-        }).join('');
+            
+            // Group by gene and peak
+            const grouped = {};
+            data.forEach(d => {
+                const key = `${d.gene}||${d.peak}`;
+                if (!grouped[key]) {
+                    grouped[key] = { gene: d.gene, peak: d.peak, tfs: [], maxProb: 0, sumProb: 0 };
+                }
+                grouped[key].tfs.push(d);
+                grouped[key].maxProb = Math.max(grouped[key].maxProb, d.combinedProb);
+                grouped[key].sumProb += d.combinedProb;
+            });
+            
+            renderData = Object.values(grouped).map(g => {
+                g.avgProb = g.sumProb / g.tfs.length;
+                return g;
+            });
 
-        const table = $(tableId).DataTable({
-            order: [[3, 'desc']],
+            tableBody.innerHTML = renderData.map(d => {
+                const hiddenTFs = d.tfs.map(tf => tf.tf).join(' ');
+                return `
+                    <tr>
+                        <td class="details-control"></td>
+                        <td><strong class="bio-link" onclick="fetchBioInfo('${d.gene}')">${d.gene}</strong><span style="display:none;">${hiddenTFs}</span></td>
+                        <td style="font-size: 0.75rem; color: var(--muted); font-family: 'IBM Plex Mono';">${d.peak}</td>
+                        <td>${d.tfs.length}</td>
+                        <td style="font-family: 'IBM Plex Mono';">${d.maxProb.toFixed(4)}</td>
+                        <td style="font-family: 'IBM Plex Mono';">${d.avgProb.toFixed(4)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+        } else {
+            tableHead.innerHTML = `
+                <tr>
+                    <th>Gene</th>
+                    <th>TF</th>
+                    <th>Overall Effect</th>
+                    <th>Circuit Prob</th>
+                    <th>Looping (L)</th>
+                    <th>Binding (B)</th>
+                    <th>Peak Location</th>
+                </tr>
+            `;
+            
+            tableBody.innerHTML = data.map(d => {
+                const effectTag = d.effect === '+' ? 'tag-pos' : (d.effect === '-' ? 'tag-neg' : 'tag-neu');
+                return `
+                    <tr>
+                        <td><strong class="bio-link" onclick="fetchBioInfo('${d.gene}')">${d.gene}</strong></td>
+                        <td><span class="bio-link" onclick="fetchBioInfo('${d.tf}')">${d.tf}</span></td>
+                        <td><span class="tag ${effectTag}">${d.effect === '?' ? 'Unknown' : (d.effect === '+' ? 'Activator' : 'Repressor')}</span></td>
+                        <td style="font-family: 'IBM Plex Mono';">${d.combinedProb.toFixed(4)}</td>
+                        <td>${d.lDir} ${d.lCons ? `<small style="color:var(--muted)">(${d.lCons})</small>` : ''}</td>
+                        <td>${d.bDir} ${d.bCons ? `<small style="color:var(--muted)">(${d.bCons})</small>` : ''}</td>
+                        <td style="font-size: 0.75rem; color: var(--muted); font-family: 'IBM Plex Mono';">${d.peak}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        const tableConfig = {
             pageLength: 25,
-            dom: '<"top"f>rt<"bottom"lip><"clear">'
-        });
+            dom: 'frt<"bottom"lip><"clear">'
+        };
+        
+        if (isTableGrouped) {
+            tableConfig.order = [[4, 'desc']]; // order by max prob
+        } else {
+            tableConfig.order = [[3, 'desc']]; // order by combined prob
+        }
+
+        const table = $(tableId).DataTable(tableConfig);
+        
+        // Move the search bar to the table header, ensuring only one exists
+        $('.table-header .dataTables_filter').remove();
+        $('.dataTables_filter').appendTo('.table-header');
+
+        if (isTableGrouped) {
+            $('#triad-table tbody').on('click', 'td.details-control', function () {
+                const tr = $(this).closest('tr');
+                const row = table.row(tr);
+                const rowIdx = row.index();
+
+                if (row.child.isShown()) {
+                    row.child.hide();
+                    tr.removeClass('shown');
+                } else {
+                    row.child(formatChildRow(renderData[rowIdx])).show();
+                    tr.addClass('shown');
+                }
+            });
+        }
 
         // Use 'draw' event as the definitive trigger for stats sync
         table.on('draw.dt', () => {
-            const filteredRows = table.rows({ filter: 'applied' }).data().toArray();
-            const filteredData = filteredRows.map(row => ({
-                gene: row[0].replace(/<[^>]*>/g, ''), // Strip strong/span tags
-                tf: row[1].replace(/<[^>]*>/g, '')
-            }));
+            let filteredData = [];
+            if (isTableGrouped) {
+                const filteredRows = table.rows({ filter: 'applied' }).indexes().toArray();
+                filteredRows.forEach(idx => {
+                    const rowData = renderData[idx];
+                    if (rowData) {
+                        rowData.tfs.forEach(tfData => {
+                            filteredData.push({
+                                gene: tfData.gene,
+                                tf: tfData.tf,
+                                combinedProb: tfData.combinedProb
+                            });
+                        });
+                    }
+                });
+            } else {
+                const filteredRows = table.rows({ filter: 'applied' }).data().toArray();
+                filteredData = filteredRows.map(row => ({
+                    gene: row[0].replace(/<[^>]*>/g, ''), // Strip strong/span tags
+                    tf: row[1].replace(/<[^>]*>/g, ''),
+                    combinedProb: parseFloat(row[3].replace(/<[^>]*>/g, ''))
+                }));
+            }
             updateStats(filteredData);
+            updateDistPlot(filteredData);
             
             const isSearching = table.search() !== "";
             document.getElementById('reset-btn').style.display = isSearching ? 'block' : 'none';
@@ -442,6 +677,40 @@
         document.getElementById('stat-tfs').innerText = uniqueTFs;
     }
 
+    function updateDistPlot(data) {
+        const plotEl = document.getElementById('dist-plot');
+        // Only update if it has been rendered at least once
+        if (!plotEl || !plotEl.data) return;
+
+        const globalTrace = {
+            x: currentData.map(d => d.combinedProb),
+            type: 'histogram',
+            marker: { color: 'rgba(15, 118, 110, 0.2)' },
+            name: 'All Circuits',
+            hovertemplate: "All Circuits<br>Confidence: %{x}<br>Count: %{y}<extra></extra>"
+        };
+
+        const distTrace = {
+            x: data.map(d => d.combinedProb),
+            type: 'histogram',
+            marker: { color: '#0f766e' },
+            name: 'Filtered',
+            hovertemplate: "Filtered<br>Confidence: %{x}<br>Count: %{y}<extra></extra>"
+        };
+
+        const distLayout = {
+            margin: { t: 30, r: 10, b: 40, l: 50 },
+            xaxis: { title: 'Combined Probability' },
+            yaxis: { title: 'Count' },
+            barmode: 'overlay',
+            showlegend: false,
+            font: { family: 'Space Grotesk' },
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
+        };
+
+        Plotly.react('dist-plot', [globalTrace, distTrace], distLayout);
+    }
+
     function resetSearch() {
         const table = $('#triad-table').DataTable();
         table.search('').draw();
@@ -449,11 +718,16 @@
 
     function renderPlots(data) {
         const tfMap = {};
+        const geneMap = {};
+
         data.forEach(d => {
             if (!tfMap[d.tf]) tfMap[d.tf] = { genes: new Set(), scoreSum: 0, count: 0 };
             tfMap[d.tf].genes.add(d.gene);
             tfMap[d.tf].scoreSum += d.combinedProb;
             tfMap[d.tf].count++;
+
+            if (!geneMap[d.gene]) geneMap[d.gene] = 0;
+            geneMap[d.gene]++;
         });
 
         const tfNames = Object.keys(tfMap);
@@ -499,22 +773,56 @@
             document.getElementById('table-card').scrollIntoView({ behavior: 'smooth' });
         });
 
+        const globalTrace = {
+            x: currentData.map(d => d.combinedProb),
+            type: 'histogram',
+            marker: { color: 'rgba(15, 118, 110, 0.2)' },
+            name: 'All Circuits',
+            hovertemplate: "All Circuits<br>Confidence: %{x}<br>Count: %{y}<extra></extra>"
+        };
+
         const distTrace = {
             x: data.map(d => d.combinedProb),
             type: 'histogram',
             marker: { color: '#0f766e' },
-            hovertemplate: "Confidence: %{x}<br>Count: %{y}<extra></extra>"
+            name: 'Filtered',
+            hovertemplate: "Filtered<br>Confidence: %{x}<br>Count: %{y}<extra></extra>"
         };
 
         const distLayout = {
             margin: { t: 30, r: 10, b: 40, l: 50 },
             xaxis: { title: 'Combined Probability' },
             yaxis: { title: 'Count' },
+            barmode: 'overlay',
+            showlegend: false,
             font: { family: 'Space Grotesk' },
             paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
         };
 
-        Plotly.newPlot('dist-plot', [distTrace], distLayout);
+        Plotly.newPlot('dist-plot', [globalTrace, distTrace], distLayout);
+
+        // Top 10 Genes Plot
+        const geneEntries = Object.entries(geneMap);
+        geneEntries.sort((a, b) => b[1] - a[1]);
+        const top10 = geneEntries.slice(0, 10);
+        
+        const topGenesTrace = {
+            x: top10.map(g => g[0]),
+            y: top10.map(g => g[1]),
+            type: 'bar',
+            marker: { color: '#0f766e' },
+            hovertemplate: "Gene: %{x}<br>Circuits: %{y}<extra></extra>"
+        };
+
+        const topGenesLayout = {
+            margin: { t: 30, r: 10, b: 40, l: 50 },
+            xaxis: { title: 'Gene' },
+            yaxis: { title: 'Circuit Count' },
+            font: { family: 'Space Grotesk' },
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
+        };
+
+        Plotly.newPlot('top-genes-plot', [topGenesTrace], topGenesLayout);
     }
 
     async function fetchBioInfo(symbol) {
