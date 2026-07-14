@@ -22,14 +22,14 @@ MAGICAL models the coordinated variation in chromatin accessibility and gene exp
 ### 1. Chromatin Accessibility Model
 The chromatin activity $A$ for a peak $p$ in a cell $k$ is modeled as:
 $$A_{pk} = \sum_{m} B_{pm} T_{mk} + N_{A,pk}$$
-*   **$B_{pm}$:** TF–peak binding confidence (Weight) between TF $m$ and peak $p$.
+*   **$B_{pm}$:** TF-peak binding confidence (Weight) between TF $m$ and peak $p$.
 *   **$T_{mk}$:** Hidden TF activity of TF $m$ in cell $k$. This represents the regulatory capacity (protein level) and is distinct from TF expression.
 *   **$N_A$:** Data noise in the ATAC-seq modality.
 
 ### 2. Gene Expression Model
 The gene expression $R$ for a gene $g$ in a cell $k$ is modeled as:
 $$R_{gk} = \sum_{p} L_{gp} \left( \sum_{m} B_{pm} T_{mk} \right) + N_{R,gk}$$
-*   **$L_{gp}$:** Peak–gene looping confidence (Weight) between peak $p$ and gene $g$.
+*   **$L_{gp}$:** Peak-gene looping confidence (Weight) between peak $p$ and gene $g$.
 *   **$N_R$:** Data noise in the RNA-seq modality.
 
 ## Continuous Weights vs. Posterior Probabilities
@@ -67,12 +67,13 @@ $$\text{Overall Effect Sign} = \text{sign}(Average(B) \times Average(L))$$
 ## Output Notation
 
 `pymagical` uses the following notation in the results edge list:
-`TF_Name (Confidence_Probability, Overall_Effect [L_dir, B_dir])`
+`TF_Name (Confidence_Probability, Overall_Effect [L_dir(consistency), B_dir(consistency)])`
 
 *   **Confidence_Probability:** The sampling frequency of the circuit (0.0 to 1.0).
 *   **Overall_Effect:** `+` for Activation, `-` for Repression.
 *   **L_dir:** Direction of Peak $\to$ Gene linkage weight.
 *   **B_dir:** Direction of TF $\to$ Peak linkage weight.
+*   **consistency:** Fraction of iterations whose sampled weight agreed with the reported `L_dir`/`B_dir` sign.
 
-*Example:* `KLF5 (0.90, - [-,+])`
-This indicates a 90% confidence circuit where KLF5 opens the peak ($B_{dir} = +$), but the peak's accessibility is negatively correlated with the target gene's expression ($L_{dir} = -$), resulting in overall repression.
+*Example:* `KLF5 (0.90, - [-(0.95),+(0.88)])`
+This indicates a 90% confidence circuit where KLF5 opens the peak ($B_{dir} = +$, agreeing in 88% of iterations), but the peak's accessibility is negatively correlated with the target gene's expression ($L_{dir} = -$, agreeing in 95% of iterations), resulting in overall repression.

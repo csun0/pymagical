@@ -44,7 +44,9 @@ def initialize_magical(
         mdl = sm.OLS(y, X).fit()
         
         # mdl.params[1] is slope, mdl.pvalues[1] is p-value
-        if len(mdl.params) > 1:
+        # Guard against NaN from degenerate/singular regressions so we never
+        # seed NaN into the priors (would silently poison the sampler).
+        if len(mdl.params) > 1 and not (np.isnan(mdl.params[1]) or np.isnan(mdl.pvalues[1])):
             b_prior[p_idx, t_idx] = mdl.params[1]
             b_prob[p_idx, t_idx] = 1 - mdl.pvalues[1]
         else:
@@ -81,7 +83,7 @@ def initialize_magical(
         y = cand_gene_log2count[g_idx, :]
         mdl = sm.OLS(y, X).fit()
         
-        if len(mdl.params) > 1:
+        if len(mdl.params) > 1 and not (np.isnan(mdl.params[1]) or np.isnan(mdl.pvalues[1])):
             l_prior[p_idx, g_idx] = mdl.params[1]
             l_prob[p_idx, g_idx] = 1 - mdl.pvalues[1]
         else:
@@ -91,7 +93,8 @@ def initialize_magical(
     l_mean = l_prior.copy()
     nonzero_l = l_prior[l_prior != 0]
     if len(nonzero_l) > 1:
-        l_var = np.var(nonzero_l)
+        # MATLAB var(L_prior(L_prior~=0)) uses N-1 degrees of freedom
+        l_var = np.var(nonzero_l, ddof=1)
     else:
         l_var = 1.0
         

@@ -36,20 +36,22 @@ To see a granular breakdown of where time is spent in the Python pipeline:
 uv run python eval/benchmarks/profile_run.py --iter 100 --output my_profile.png
 ```
 
-### 3. Launching Cluster Jobs (5000-Iteration Benchmarks)
+### 3. Launching Cluster Jobs
 
-Use the optimized Slurm scripts to submit jobs to the queue:
+Submit the Slurm runners. Iterations, cell type, Numba on/off, and paths are set by editing the variables near the top of each script (`ITERATIONS`, `CELLTYPE`, `USE_NUMBA`):
 
 ```bash
-# Submit Numba-accelerated Python job
-sbatch eval/benchmarks/scripts/run_pymagical_numba_5000.sh
+# Python job (set USE_NUMBA=true/false inside the script)
+sbatch eval/benchmarks/scripts/run_pymagical.sh
 
-# Submit standard NumPy Python job
-sbatch eval/benchmarks/scripts/run_pymagical_numpy_5000.sh
+# Original MATLAB job
+sbatch eval/benchmarks/scripts/run_matlab.sh
 
-# Submit original MATLAB job
-sbatch eval/benchmarks/scripts/run_matlab_5000.sh
+# Run all seven cell types as a Slurm array
+sbatch --array=0-6 eval/benchmarks/scripts/run_pymagical.sh
 ```
+
+Job output lands in `eval/benchmarks/logs/`. Use `scripts/compare_all.py` to aggregate results across cell types.
 
 ## Metrics and Validation
 

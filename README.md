@@ -1,6 +1,6 @@
 # pymagical
 
-`pymagical` is a high-performance Python port of the **MAGICAL** (Multiome Accessibility Gene Integration Calling and Looping) algorithm. It provides a method for inferring functional regulatory circuits—triads of Transcription Factors (TFs), cis-regulatory elements (Peaks), and target Genes—from single-cell RNA-seq and ATAC-seq data.
+`pymagical` is a high-performance Python port of the **MAGICAL** (Multiome Accessibility Gene Integration Calling and Looping) algorithm. It infers functional regulatory circuits (triads of Transcription Factors, cis-regulatory elements or Peaks, and target Genes) from paired single-cell RNA-seq and ATAC-seq data.
 
 The methodology is based on the framework described in:
 > **Chen et al., "Mapping disease regulatory circuits at cell-type resolution from single-cell multiomics data" *Nature Computational Science* 2023.**
@@ -8,9 +8,9 @@ The methodology is based on the framework described in:
 
 ## Key Features
 
-*   **IO Caching:** Automatically caches large sparse matrices and genomic metadata into PyArrow-backed Parquet and NumPy formats for near-instant subsequent loads (**~15x faster** than MATLAB).
-*   **Numba-Accelerated Sampling:** Utilizes JIT-compiled kernels to provide a **~30x speedup** in Gibbs sampling compared to the original MATLAB implementation (averaged across large-scale benchmarks).
-*   **Biological Directionality:** Classifies inferred circuits as **activators (+)** or **repressors (-)** by analyzing continuous regression weights.
+*   **IO Caching:** Caches large sparse matrices and genomic metadata into PyArrow-backed Parquet and NumPy formats for near-instant subsequent loads (**~15x faster** than re-parsing text).
+*   **Numba-Accelerated Sampling:** JIT-compiled kernels give **~28x faster** Gibbs sampling than the original MATLAB implementation (astrocytes, 2000 iterations).
+*   **Biological Directionality:** Classifies inferred circuits as **activators (+)** or **repressors (-)** from the continuous regression weights.
 
 ## Documentation
 
@@ -80,16 +80,18 @@ Run `pymagical --help` to see all available flags and subcommands.
 
 ### 2. Programmatic Usage
 
+`run_magical` takes individual file paths (all required); see the [tutorial](TUTORIAL.md#6-advanced-usage-programmatic-api) for the full argument list.
+
 ```python
 from pymagical import run_magical
 
 run_magical(
     cand_gene_file="genes.txt",
     cand_peak_file="peaks.txt",
-    # ... other file paths ...
+    # ... remaining RNA/ATAC/motif/TAD/refseq file paths (all required) ...
     iteration_num=2000,
     use_numba=True,
-    output_file="my_results.txt"
+    output_file="my_results.txt",
 )
 ```
 

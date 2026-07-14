@@ -8,19 +8,19 @@ The `pymagical` engine performs coordinate-wise Gibbs sampling with "Running Res
 
 | Sampling Stage | Complexity per Iteration | Scaling Factors |
 | :--- | :--- | :--- |
-| **TF–Peak Binding ($B$)** | $O(M \times P \times S)$ | $M$: TFs, $P$: Peaks, $S$: Samples |
-| **Peak–Gene Looping ($L$)** | $O(P \times G \times S)$ | $P$: Peaks, $G$: Genes, $S$: Samples |
+| **TF-Peak Binding ($B$)** | $O(M \times P \times S)$ | $M$: TFs, $P$: Peaks, $S$: Samples |
+| **Peak-Gene Looping ($L$)** | $O(P \times G \times S)$ | $P$: Peaks, $G$: Genes, $S$: Samples |
 | **TF Activity ($T$)** | $O(M \times S \times P)$ | $M$: TFs, $S$: Samples, $P$: Peaks |
 
-The **Peak–Gene Looping ($L$)** stage is the primary bottleneck ($O(P \times G \times S)$).
+The **Peak-Gene Looping ($L$)** stage is the primary bottleneck ($O(P \times G \times S)$).
 
 ---
 
 ## 2. Feasibility of "Unfiltered" Input
 
-The standard workflow uses DAS/DEG filtering and TAD boundaries. Below is a comparison of runtime feasibility for different input scenarios.
+The standard workflow uses DAS/DEG filtering and TAD boundaries. The table below projects runtime feasibility for different input scenarios. Only the filtered column is measured; the other runtimes are order-of-magnitude projections scaled from the op counts, not benchmarks.
 
-### Numerical Comparison (2,000 Iterations)
+### Scenario Comparison (2,000 Iterations)
 
 | Metric | Filtered (Standard) | **All Genes, Filtered Peaks** | Unfiltered (All Features) |
 | :--- | :--- | :--- | :--- |
@@ -28,28 +28,23 @@ The standard workflow uses DAS/DEG filtering and TAD boundaries. Below is a comp
 | **Genes ($G$)** | ~400 | ~20,000 | ~20,000 |
 | **Samples ($S$)** | 20 | 20 | 20 |
 | **Ops per Iter** | $4 \times 10^6$ | $2 \times 10^8$ (50x) | $4 \times 10^{10}$ (10,000x) |
-| **Numba Runtime** | **~1.5 minutes** | **~75 minutes** | **~10 days** |
-| **MATLAB Runtime** | ~47 minutes | ~39 hours | ~300 days |
+| **Numba Runtime** | **~1.5 min (measured)** | ~1 hour (est.) | ~10 days (est.) |
+| **MATLAB Runtime** | ~35 min (measured) | ~1.5 days (est.) | ~300 days (est.) |
 
 ---
 
-## 3. Implementation Disparities (Python vs. MATLAB)
+## 3. Implementation Notes (Python vs. MATLAB)
 
-Users may notice slight deviations in the initial counts of selected peaks and genes (e.g., Python: 384 genes, MATLAB: 383 genes). These are **expected technical artifacts** caused by differences in selection logic:
+`pymagical` reproduces MATLAB's candidate-selection logic, including the strand-specific "extreme boundary" TSS rule: for a gene with multiple transcripts it takes the minimum `start` (`+` strand) or maximum `end` (`-` strand) across all transcripts (`circuits.py`). Initial peak and gene counts therefore closely match the MATLAB reference.
 
-1.  **TSS Calculation:** 
-    *   **MATLAB:** Selects the extreme boundary for genes with multiple transcripts (minimum start for `+` strand, maximum end for `-` strand).
-    *   **Python (`pymagical`):** Selects the TSS from the first matching entry in the RefSeq file.
-2.  **TAD Boundary Sensitivity:** Because TAD filtering uses strict inequality (`TSS > left & TSS < right`), a shift of even a few base pairs in the calculated TSS can push a gene across a boundary, adding or removing it from the candidate set. 
-3.  **Propagation:** A gene being added/removed from a TAD changes the set of peaks that have at least one looping partner, which in turn shifts the final peak count.
+Any residual difference (typically within ~1% of genes) comes from tie-breaking when a gene name maps to multiple chromosomes or strands in RefSeq: `pymagical` dedupes on gene name and keeps the first entry. Because TAD filtering uses strict inequality (`TSS > left & TSS < right`), a few-base-pair shift in a borderline TSS can move a gene across a boundary, which in turn changes the set of peaks that retain a looping partner.
 
-**Impact:** These differences only affect a tiny fraction of genes (~1%) and do not impact the overall statistical convergence or biological interpretation of the results.
+**Impact:** These edge cases affect a tiny fraction of genes and do not change statistical convergence or biological interpretation.
 
 ---
 
 ## 4. Practical Implications
 
-The Numba implementation transformations:
-*   **Feasible:** Skipping Gene filtering (DEG) is possible if Peaks (DAS) are still filtered (~1 hour runtime).
-*   **Infeasible:** Skipping Peak filtering is not recommended (~9 day runtime).
-*   **Benefit:** Allows for relaxed statistical thresholds and high-throughput processing of dozens of cell types.
+*   **Feasible:** Skipping gene filtering (DEG) works if peaks (DAS) stay filtered (roughly an hour).
+*   **Infeasible:** Skipping peak filtering is not recommended (multi-day runtime).
+*   **Benefit:** Numba makes relaxed thresholds and high-throughput processing of many cell types practical.

@@ -55,7 +55,7 @@ e.g. `uv run pytest` or `uv run pymagical --help`.
 | `motif_info.txt` | TF-to-Motif mapping | `motif_index`, `tf_name` | No |
 | `motif_prior.txt` | Motif-Peak binding prior | `peak_index`, `motif_index`, `flag` (binary) | No |
 | `tad_regions.txt` | TAD boundaries | `chr`, `left_boundary`, `right_boundary` | No |
-| `refseq.txt` | Genomic reference | `chr`, `strand`, `start`, `end`, `gene_name` | No |
+| `rhemac10_refseq.txt` | Genomic reference | `chr`, `strand`, `start`, `end`, `gene_name` | No |
 
 ### Cell-Type Specific Files (Required for each cell type folder)
 
@@ -90,7 +90,7 @@ pymagical run \
 
 ### Key Arguments:
 *   `--iter`: Number of Gibbs sampling iterations (2000+ recommended for publication-quality results).
-*   `--use-numba`: Enables JIT-compiled kernels. **Provides a ~30x speedup over MATLAB.**
+*   `--use-numba`: Enables JIT-compiled kernels. **~28x faster sampling than MATLAB.**
 *   `--prefix`: Prefix for the generated output files.
 
 ---
@@ -101,7 +101,7 @@ Once the run completes, you will find several files in your `outdir`:
 
 1.  **`{prefix}_py_{iter}.txt`**: The primary results file. It contains the inferred circuits:
     *   `Peak_Gene_Prob`: The posterior probability of a peak-gene functional link.
-    *   `TFs(prob, effect)`: A list of TFs binding that peak, their probability, and their biological direction (e.g., `+ [+,+]` for an activator).
+    *   `TFs(prob, effect [L(consistency), B(consistency)])`: TFs binding that peak, each as `TF (prob, effect [Ldir(cons),Bdir(cons)])`. `effect` is `+` (activator) or `-` (repressor); `Ldir`/`Bdir` are the peak-gene and TF-peak weight signs, each with the fraction of iterations agreeing with that sign. Example: `KLF5 (0.90, - [-(0.95),+(0.88)])`.
 2.  **`{prefix}_py_{iter}_B_matrix.txt`**: The full continuous weight matrix for TF-Peak binding.
 3.  **`{prefix}_py_{iter}_L_matrix.txt`**: The full continuous weight matrix for Peak-Gene looping.
 
@@ -133,16 +133,27 @@ uv run python eval/tests/compare_results.py \
 
 ## 6. Advanced Usage: Programmatic API
 
-You can also integrate `pymagical` directly into your Python scripts:
+You can also integrate `pymagical` directly into your Python scripts. Unlike the CLI, `run_magical` takes individual file paths (not `--main-dir`/`--cell-dir`):
 
 ```python
 from pymagical import run_magical
 
 run_magical(
-    main_dir="data/",
-    cell_dir="astrocytes",
+    cand_gene_file="data/astrocytes/sig_cr_genes.txt",
+    cand_peak_file="data/astrocytes/sig_cr_peaks.txt",
+    rna_counts_file="data/astrocytes/rna_counts.txt",
+    rna_genes_file="data/astrocytes/rna_genes.txt",
+    rna_meta_file="data/astrocytes/rna_meta.txt",
+    atac_counts_file="data/astrocytes/atac_counts.txt",
+    atac_peaks_file="data/astrocytes/atac_peaks.txt",
+    atac_meta_file="data/astrocytes/atac_meta.txt",
+    motif_mapping_file="data/motif_prior.txt",
+    motif_name_file="data/motif_info.txt",
+    tad_flag=1,
+    tad_file="data/tad_regions.txt",
+    refseq_file="data/rhemac10_refseq.txt",
+    output_file="results/astrocytes_circuits.txt",
     iteration_num=2000,
     use_numba=True,
-    output_file="results/astrocytes_circuits.txt"
 )
 ```

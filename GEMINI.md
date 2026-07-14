@@ -1,7 +1,7 @@
 # GEMINI.md - pymagical Project Context
 
 ## Project Overview
-`pymagical` is a high-performance Python port of the **MAGICAL** (Multiome Accessibility Gene Integration Calling and Looping) algorithm. It is designed to infer functional regulatory circuits—consisting of Transcription Factors (TFs), cis-regulatory elements (Peaks), and target Genes—from paired single-cell RNA-seq and ATAC-seq data using a hierarchical Bayesian Gibbs sampling framework.
+`pymagical` is a high-performance Python port of the **MAGICAL** (Multiome Accessibility Gene Integration Calling and Looping) algorithm. It infers functional regulatory circuits (Transcription Factors, cis-regulatory elements or Peaks, and target Genes) from paired single-cell RNA-seq and ATAC-seq data using a hierarchical Bayesian Gibbs sampling framework.
 
 The original methodology is documented in [docs/MAGICAL.pdf](docs/MAGICAL.pdf).
 
@@ -34,9 +34,9 @@ uv sync
 ```
 
 ### Running the Pipeline
-Run the circuit inference via the installed CLI (use `--use-numba` for 28x speedup):
+Run the circuit inference via the installed CLI (use `--use-numba` for ~28x faster sampling):
 ```bash
-uv run pymagical --iter 2000 --use-numba --prefix my_experiment --outdir outputs/
+uv run pymagical run --main-dir ./data --cell-dir astrocytes --iter 2000 --use-numba --prefix my_experiment --outdir outputs/
 ```
 
 ### Testing and Evaluation
@@ -50,7 +50,7 @@ uv run python eval/tests/compare_results.py --ml-dir path/to/ml_out --py-dir pat
 ### Coding Style
 - **Indentation**: 4 spaces.
 - **Output Naming**: Generated artifacts follow the `{prefix}_{py|ml}_{iter}` pattern.
-- **Biological Signage**: Circuit effects are reported as `Overall_Effect [L_dir, B_dir]`.
+- **Biological Signage**: Circuit effects are reported as `Overall_Effect [L_dir(consistency), B_dir(consistency)]`, where consistency is the fraction of iterations agreeing with the reported sign.
 
 ### Performance Standards
 - **Numba Acceleration**: Core sampling loops MUST be implemented in `estimation_kernels.py` using `@njit(parallel=True)` where safe.

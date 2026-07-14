@@ -7,8 +7,8 @@ This document provides a detailed technical analysis of the architectural and ma
 The primary goal of the initial Python port was to replace the rigid, single-threaded MATLAB environment with a modern, modular data science stack.
 
 ### Key Improvements:
-*   **Vectorization via BLAS/LAPACK:** MATLAB often relies on internal proprietary optimizations for matrix math. By moving to NumPy, we explicitly leverage open-source, high-performance linear algebra libraries (OpenBLAS/MKL). This was most evident in the **Initialization (OLS)** stage, which saw a **~16x speedup** by replacing MATLAB's iterative solver with `statsmodels` and NumPy vectorized regression.
-*   **Binary Data Caching:** The MATLAB version parsed text files on every execution. `pymagical` implements a **Parquet/NPZ caching layer**. Genomic matrices are serialized into column-compressed Parquet files (via PyArrow) after the first run, reducing IO overhead from ~14 seconds to ~1.8 seconds.
+*   **Vectorization via BLAS/LAPACK:** MATLAB often relies on internal proprietary optimizations for matrix math. By moving to NumPy, we explicitly leverage open-source, high-performance linear algebra libraries (OpenBLAS/MKL). This was most evident in the **Initialization (OLS)** stage, which saw a **~11x speedup** (27.5s to 2.4s) by replacing MATLAB's iterative solver with `statsmodels` and NumPy vectorized regression.
+*   **Binary Data Caching:** The MATLAB version parsed text files on every execution. `pymagical` implements a **Parquet/NPZ caching layer**. Genomic matrices are serialized into column-compressed Parquet files (via PyArrow) after the first run, reducing IO overhead from ~18 seconds to ~1.2 seconds (**~15x**).
 
 ---
 
@@ -16,7 +16,7 @@ The primary goal of the initial Python port was to replace the rigid, single-thr
 
 The most significant performance bottleneck in the original Python port was the **Gibbs Sampler**. Gibbs sampling is inherently iterative and coordinate-wise, requiring heavily nested loops that are a "worst-case scenario" for the Python interpreter.
 
-### A. How JIT Improves the Package
+### How JIT Improves the Package
 We utilized **Numba**, a Just-In-Time (JIT) compiler that translates a subset of Python and NumPy code into optimized machine code using the LLVM compiler library.
 
 1.  **Loop Unrolling & Fusion:** Python's `for` loops incur significant overhead due to type checking and object dispatch at every iteration. Numba compiles these loops into raw C-equivalent loops, allowing the CPU to execute them at native speeds.
@@ -29,7 +29,7 @@ We utilized **Numba**, a Just-In-Time (JIT) compiler that translates a subset of
 
 In the standard implementation, calculating the conditional mean for a single variable update requires computing a full matrix-vector product to find the "residual" (the difference between observed data and the model's current prediction).
 
-### B. Implementation and Logic
+### Implementation and Logic
 A standard Gibbs update for a weight $b_{p,m}$ requires the residual $R_p = A_p - \sum_{k \neq m} b_{p,k} T_k$. 
 Computing this directly at every step is $O(M \times S)$ for one TF, or $O(M \times P \times S)$ for a full sweep of the binding matrix.
 
@@ -58,4 +58,4 @@ This reduces the complexity of an update from a full matrix product to a simple 
 | **Numba JIT** | ~15x Sampling Speedup | LLVM Machine Code Generation |
 | **Running Residuals**| ~2x Sampling Speedup | Complexity Reduction ($O(N^3) \to O(N^2)$) |
 
-**Total Cumulative Speedup (MATLAB $\to$ Numba): ~30x**
+**Total sampling speedup (MATLAB $\to$ Numba): ~28x** (astrocytes, 2000 iterations).

@@ -167,7 +167,17 @@ def load_scrna_data(counts_file, genes_file, meta_file):
     row = counts_df['gene_index'].values - 1
     col = counts_df['cell_index'].values - 1
     data = counts_df['readcount'].values
-    
+
+    # Inputs are 1-indexed (MATLAB origin); an out-of-range index would silently
+    # grow the sparse matrix instead of erroring, corrupting downstream shapes.
+    if len(row) and (row.min() < 0 or row.max() >= len(genes_df)
+                     or col.min() < 0 or col.max() >= len(cells_df)):
+        raise ValueError(
+            f"scRNA counts index out of bounds: gene_index in "
+            f"[{row.min() + 1}, {row.max() + 1}] vs {len(genes_df)} genes; "
+            f"cell_index in [{col.min() + 1}, {col.max() + 1}] vs {len(cells_df)} cells."
+        )
+
     count_matrix = sparse.coo_matrix((data, (row, col)), shape=(len(genes_df), len(cells_df))).tocsr()
     
     _atomic_save_parquet(genes_df, genes_cache)
@@ -211,7 +221,17 @@ def load_scatac_data(counts_file, peaks_file, meta_file):
     row = counts_df['peak_index'].values - 1
     col = counts_df['cell_index'].values - 1
     data = counts_df['readcount'].values
-    
+
+    # Inputs are 1-indexed (MATLAB origin); an out-of-range index would silently
+    # grow the sparse matrix instead of erroring, corrupting downstream shapes.
+    if len(row) and (row.min() < 0 or row.max() >= len(peaks_df)
+                     or col.min() < 0 or col.max() >= len(cells_df)):
+        raise ValueError(
+            f"scATAC counts index out of bounds: peak_index in "
+            f"[{row.min() + 1}, {row.max() + 1}] vs {len(peaks_df)} peaks; "
+            f"cell_index in [{col.min() + 1}, {col.max() + 1}] vs {len(cells_df)} cells."
+        )
+
     count_matrix = sparse.coo_matrix((data, (row, col)), shape=(len(peaks_df), len(cells_df))).tocsr()
     
     _atomic_save_parquet(peaks_df, peaks_cache)

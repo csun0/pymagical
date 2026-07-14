@@ -6,8 +6,8 @@
 The test input datasets consist of space/tab-delimited text files. The largest files are `atac_counts.txt` (374MB) and `rna_counts.txt` (114MB), which encode sparse matrices in Coordinate format (COO: row, column, value, 1-indexed since it originates from MATLAB). Other files, like `atac_peaks.txt` and `rna_genes.txt`, contain standard row-based metadata.
 
 ### Observations & Recommendations
-1. **Clarity & Speed:** Parsing hundreds of megabytes of text-based coordinate lists line-by-line is memory and compute-intensive in Python. 
-2. **PyArrow / Parquet Storage:** Switching to PyArrow-backed Parquet files would provide tremendous benefits. Parquet's columnar format easily shrinks 300MB+ `.txt` files down to ~20-50MB. Reading Parquet files is an order of magnitude faster because the parser avoids decoding strings to integers and directly loads memory-mapped data.
+1. **Clarity & Speed:** Parsing hundreds of megabytes of text coordinate lists line-by-line is memory and compute intensive in Python.
+2. **PyArrow / Parquet Storage:** Parquet's columnar format shrinks 300MB+ `.txt` files to ~20-50MB and reads an order of magnitude faster, since it skips string-to-integer decoding and loads memory-mapped data directly.
 
 ### Decision for IO
 For `pymagical`, we implemented a dual-path IO handler (`data_loader.py`):
@@ -56,7 +56,7 @@ For `pymagical`, we implemented a dual-path IO handler (`data_loader.py`):
 
 ## PHASE 5: FEATURE ENHANCEMENTS
 - **Biological Directionality:** The original implementation only provided interaction probabilities. The Python port was modified to calculate whether a TF acts as an **activator (+)** or a **repressor (-)** for its target gene by tracking the continuous linear regression weights generated during the Gibbs sampling loops. 
-- The final output string format was updated to include this context, breaking down the interaction into its component parts (e.g., `STAT5B (0.85, + [+,+])` indicating an activator that opens a peak `+` which increases gene expression `+`).
+- The final output string format was updated to include this context, breaking down the interaction into its component parts plus a per-sign consistency (e.g., `STAT5B (0.85, + [+(0.97),+(0.94)])` indicating an activator that opens a peak `+` which increases gene expression `+`, with each sign agreeing in >90% of iterations).
 - **Weight History Analysis:** Added a `--dump-weights` CLI flag. When enabled, the sampler outputs the complete, iteration-by-iteration history of continuous B and L weights as `.npy` matrices, allowing for downstream distribution analysis to assess the robustness of taking the mean weight across runs.
 
 ## PHASE 6: HYPER-OPTIMIZATION (NUMBA)
