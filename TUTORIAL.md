@@ -30,12 +30,15 @@ uv pip install pymagical
 If you want to run the benchmarks or contribute to the code:
 
 ```bash
-git clone https://github.com/your-repo/pymagical.git
+git clone https://github.com/csun0/pymagical.git
 cd pymagical
 uv sync
 ```
 
-This will automatically create a virtual environment (`.venv`) with all required dependencies, including `pytest`, `numba`, `numpy`, and `pandas`.
+This automatically creates a virtual environment (`.venv`) with all runtime dependencies
+(`numba`, `numpy`, `scipy`, `pandas`, `statsmodels`, `pyarrow`) plus the `dev` group
+(`pytest`, `matplotlib`, `seaborn`, and the `viz` libraries). Run tooling with `uv run`,
+e.g. `uv run pytest` or `uv run pymagical --help`.
 
 ---
 

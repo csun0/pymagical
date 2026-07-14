@@ -35,12 +35,6 @@ viz = [
     "jinja2>=3.1.6",
     "plotly>=6.5.2",
 ]
-dev = [
-    "pytest>=8.0.0",
-    "matplotlib>=3.10.8",
-    "seaborn>=0.13.2",
-    "pyfonts>=1.2.0",
-]
 
 [project.scripts]
 pymagical = "pymagical.cli:main"
@@ -52,6 +46,10 @@ Issues = "https://github.com/csun0/pymagical/issues"
 
 [tool.hatch.version]
 source = "vcs"
+# Fall back to a static version when building outside a git checkout (e.g. a
+# release tarball, a GitHub zip, or a shallow clone with no tags) so the build
+# never hard-fails. Tagged git builds still derive the real version.
+raw-options = { fallback_version = "0.0.0" }
 
 [tool.hatch.build.targets.sdist]
 include = ["src/pymagical", "README.md", "LICENSE"]
@@ -59,9 +57,13 @@ include = ["src/pymagical", "README.md", "LICENSE"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/pymagical"]
 
+# Developer tooling (PEP 735). Installed by `uv sync` automatically; not part of
+# the published wheel. Bundles the viz libs so `pymagical viz` works locally.
 [dependency-groups]
 dev = [
-    "matplotlib>=3.10.8",
-    "pytest>=9.0.2",
-    "seaborn>=0.13.2",
+    "pytest>=8.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.13.0",
+    "jinja2>=3.1.6",
+    "plotly>=6.5.2",
 ]

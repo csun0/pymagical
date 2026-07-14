@@ -23,17 +23,44 @@ For detailed information on setup, biological methodology, and validation, pleas
 
 ## Installation
 
-The recommended way to install `pymagical` is via [PyPI](https://pypi.org/project/pymagical/):
+### For users (from PyPI)
+
+Install `pymagical` in one step with `pip` (or `uv pip`):
 
 ```bash
 pip install pymagical
 ```
 
-For interactive HTML reports and visualization features, install the `viz` extra:
+For the interactive HTML report (`pymagical viz`), install the optional `viz` extra:
 
 ```bash
 pip install "pymagical[viz]"
 ```
+
+Requires Python ≥ 3.10 and a C compiler (Numba needs one for its JIT kernels).
+
+### For developers (from source)
+
+Clone the repository and sync the environment with [uv](https://docs.astral.sh/uv/); this
+creates a `.venv` and installs the package (editable) plus the `dev` dependency
+group (pytest, plotting, and the viz libraries):
+
+```bash
+git clone https://github.com/csun0/pymagical.git
+cd pymagical
+uv sync
+```
+
+Then run commands inside the environment with `uv run`:
+
+```bash
+uv run pymagical --help     # CLI
+uv run pytest               # test suite
+```
+
+> The package version is derived from git tags via `hatch-vcs`. A full clone (or a
+> release tarball) builds fine; if you build from a source tree with no git history
+> the version falls back to `0.0.0`.
 
 ## Quick Start
 
