@@ -2,14 +2,22 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-def construct_candidate_circuits_with_tad(
+def construct_candidate_circuits(
     common_samples,
-    cand_genes, cand_peaks, 
+    cand_genes, cand_peaks,
     rna_genes, rna_cells, rna_count_matrix,
     atac_peaks, atac_cells, atac_count_matrix,
     motifs, tf_peak_binding_matrix,
-    refseq, tad_regions
+    refseq, tad_regions=None, distance_control=5e5
 ):
+    """Build candidate TF-peak-gene circuits.
+
+    With `tad_regions`, a peak-gene pair is a candidate if both lie in the same TAD
+    and the peak center is within 1 Mb of the TSS (Candidate_circuits_construction_with_TAD.m).
+    With `tad_regions=None`, the only criterion is peak center within `distance_control`
+    of the TSS (Candidate_circuits_construction_without_TAD.m; MATLAB default 500 kb).
+    All other steps are identical between the two MATLAB functions.
+    """
     print("Starting candidate circuits construction...")
     
     # --- 1. TF-peak binding ---
@@ -89,37 +97,40 @@ def construct_candidate_circuits_with_tad(
     num_cand_peaks = len(curr_cand_peaks)
     num_cand_genes = len(curr_cand_genes)
     
-    peak_gene_looping_tad = np.zeros((num_cand_peaks, num_cand_genes), dtype=int)
-    
     peak_chr = curr_cand_peaks['chr_num'].values
     peak_center = (curr_cand_peaks['point1'].values + curr_cand_peaks['point2'].values) / 2
     peak_p1 = curr_cand_peaks['point1'].values
     peak_p2 = curr_cand_peaks['point2'].values
-    
-    # Build TAD looping mask
-    for _, tad in tad_regions.iterrows():
-        tad_chr = tad['chr_num']
-        t_left = tad['left_boundary']
-        t_right = tad['right_boundary']
-        
-        # Peaks in TAD
-        p_idx = np.where((peak_chr == tad_chr) & (peak_p1 > t_left) & (peak_p2 < t_right))[0]
-        # Genes in TAD
-        g_idx = np.where((gene_tss[:, 0] == tad_chr) & (gene_tss[:, 1] > t_left) & (gene_tss[:, 1] < t_right))[0]
-        
-        if len(p_idx) > 0 and len(g_idx) > 0:
-            for p in p_idx:
-                peak_gene_looping_tad[p, g_idx] = 1
-                
-    # Build Distance looping mask (< 1e6)
+
+    # Build Distance looping mask: < 1e6 with TADs, < distance_control without
+    max_distance = 1e6 if tad_regions is not None else distance_control
     peak_gene_looping_dist = np.zeros((num_cand_peaks, num_cand_genes), dtype=int)
     for g in range(num_cand_genes):
         g_chr = gene_tss[g, 0]
         g_tss = gene_tss[g, 1]
-        dist_mask = (peak_chr == g_chr) & (np.abs(peak_center - g_tss) < 1e6)
+        dist_mask = (peak_chr == g_chr) & (np.abs(peak_center - g_tss) < max_distance)
         peak_gene_looping_dist[dist_mask, g] = 1
-        
-    curr_cand_peak_gene_looping = peak_gene_looping_tad * peak_gene_looping_dist
+
+    if tad_regions is not None:
+        # Build TAD looping mask
+        peak_gene_looping_tad = np.zeros((num_cand_peaks, num_cand_genes), dtype=int)
+        for _, tad in tad_regions.iterrows():
+            tad_chr = tad['chr_num']
+            t_left = tad['left_boundary']
+            t_right = tad['right_boundary']
+
+            # Peaks in TAD
+            p_idx = np.where((peak_chr == tad_chr) & (peak_p1 > t_left) & (peak_p2 < t_right))[0]
+            # Genes in TAD
+            g_idx = np.where((gene_tss[:, 0] == tad_chr) & (gene_tss[:, 1] > t_left) & (gene_tss[:, 1] < t_right))[0]
+
+            if len(p_idx) > 0 and len(g_idx) > 0:
+                for p in p_idx:
+                    peak_gene_looping_tad[p, g_idx] = 1
+
+        curr_cand_peak_gene_looping = peak_gene_looping_tad * peak_gene_looping_dist
+    else:
+        curr_cand_peak_gene_looping = peak_gene_looping_dist
     
     # Filter peaks and genes with >0 looping
     p_sums = curr_cand_peak_gene_looping.sum(axis=1)
@@ -280,4 +291,36 @@ def construct_candidate_circuits_with_tad(
         curr_cand_tf_binding, curr_cand_peak_gene_looping,
         atac_cell_vector, scatac_read_count_matrix,
         rna_cell_vector, scrna_read_count_matrix
+    )
+
+def construct_candidate_circuits_with_tad(
+    common_samples,
+    cand_genes, cand_peaks,
+    rna_genes, rna_cells, rna_count_matrix,
+    atac_peaks, atac_cells, atac_count_matrix,
+    motifs, tf_peak_binding_matrix,
+    refseq, tad_regions
+):
+    return construct_candidate_circuits(
+        common_samples, cand_genes, cand_peaks,
+        rna_genes, rna_cells, rna_count_matrix,
+        atac_peaks, atac_cells, atac_count_matrix,
+        motifs, tf_peak_binding_matrix,
+        refseq, tad_regions=tad_regions
+    )
+
+def construct_candidate_circuits_without_tad(
+    common_samples,
+    cand_genes, cand_peaks,
+    rna_genes, rna_cells, rna_count_matrix,
+    atac_peaks, atac_cells, atac_count_matrix,
+    motifs, tf_peak_binding_matrix,
+    refseq, distance_control=5e5
+):
+    return construct_candidate_circuits(
+        common_samples, cand_genes, cand_peaks,
+        rna_genes, rna_cells, rna_count_matrix,
+        atac_peaks, atac_cells, atac_count_matrix,
+        motifs, tf_peak_binding_matrix,
+        refseq, tad_regions=None, distance_control=distance_control
     )

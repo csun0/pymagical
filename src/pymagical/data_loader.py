@@ -193,10 +193,12 @@ def load_scatac_data(counts_file, peaks_file, meta_file):
     fingerprint = _get_source_fingerprint(sources)
     cache_dir = _get_cache_dir(counts_file)
     
-    peaks_cache = os.path.join(cache_dir, f"scatac_{fingerprint}_peaks.parquet")
-    cells_cache = os.path.join(cache_dir, f"scatac_{fingerprint}_cells.parquet")
-    counts_cache = os.path.join(cache_dir, f"scatac_{fingerprint}_counts.npz")
-    meta_path = os.path.join(cache_dir, f"scatac_{fingerprint}.meta")
+    # v2: peaks are parsed from the first four columns only; the version tag keeps
+    # caches written by the old parser (which misread 6-column peak files) from being reused.
+    peaks_cache = os.path.join(cache_dir, f"scatac_v2_{fingerprint}_peaks.parquet")
+    cells_cache = os.path.join(cache_dir, f"scatac_v2_{fingerprint}_cells.parquet")
+    counts_cache = os.path.join(cache_dir, f"scatac_v2_{fingerprint}_counts.npz")
+    meta_path = os.path.join(cache_dir, f"scatac_v2_{fingerprint}.meta")
     
     cache_files = [peaks_cache, cells_cache, counts_cache]
     
@@ -208,8 +210,10 @@ def load_scatac_data(counts_file, peaks_file, meta_file):
         return peaks_df, cells_df, count_matrix
 
     print(f"Loading scATAC peaks from {os.path.basename(peaks_file)} ...")
-    peaks_df = pd.read_csv(peaks_file, sep='\t', header=None, 
-                           names=['peak_index', 'chr', 'point1', 'point2'])
+    # Only the first four columns are used. Original MAGICAL peak files carry extra
+    # columns (e.g. width, strand); MATLAB's readtable ignored them, so we do too.
+    peaks_df = pd.read_csv(peaks_file, sep='\t', header=None, usecols=[0, 1, 2, 3])
+    peaks_df.columns = ['peak_index', 'chr', 'point1', 'point2']
     peaks_df['chr_num'] = parse_chr_to_num(peaks_df['chr'])
     
     print(f"Loading scATAC meta from {os.path.basename(meta_file)} ...")
@@ -294,20 +298,46 @@ def load_tad_regions(filepath):
     _atomic_save_metadata(meta_path, fingerprint)
     return df
 
+def _validate_refseq(df, filepath):
+    """Stop if start/end did not parse as integers (e.g. an errant header row).
+
+    Original MAGICAL refseq files start with a header line that MATLAB skipped
+    ('headerlines', 1); pymagical expects no header. A header read as data turns
+    start/end into strings, which silently breaks gene TSS matching downstream.
+    """
+    bad_cols = [c for c in ('start', 'end') if not pd.api.types.is_integer_dtype(df[c])]
+    if not bad_cols:
+        return
+    bad_rows = df[pd.to_numeric(df['start'], errors='coerce').isna()
+                  | pd.to_numeric(df['end'], errors='coerce').isna()]
+    examples = "\n".join(
+        f"  line {i + 1}: " + "\t".join(str(v) for v in row)
+        for i, row in bad_rows.head(5)[['chr', 'strand', 'start', 'end', 'gene_name']].iterrows()
+    )
+    raise ValueError(
+        f"Refseq file {filepath}: column(s) {bad_cols} contain non-integer values in "
+        f"{len(bad_rows)} row(s). pymagical expects no header line "
+        f"(chr, strand, start, end, gene_name). Offending rows:\n{examples}\n"
+        f"If line 1 is a header, remove it (e.g. `tail -n +2 in.txt > out.txt`)."
+    )
+
 def load_refseq(filepath):
     """Load Refseq info."""
     fingerprint = _get_source_fingerprint([filepath])
     cache_dir = _get_cache_dir(filepath)
     cache_path = os.path.join(cache_dir, f"refseq_{fingerprint}.parquet")
     meta_path = cache_path + ".meta"
-    
+
     if _check_cache_integrity([cache_path], meta_path, fingerprint):
         print(f"Using cached file for Refseq: {os.path.basename(cache_path)}")
-        return pd.read_parquet(cache_path)
-        
+        df = pd.read_parquet(cache_path)
+        _validate_refseq(df, filepath)
+        return df
+
     print(f"Loading Refseq info from {os.path.basename(filepath)} ...")
-    df = pd.read_csv(filepath, sep=r'\s+', header=None, 
+    df = pd.read_csv(filepath, sep=r'\s+', header=None,
                      names=['chr', 'strand', 'start', 'end', 'gene_name'])
+    _validate_refseq(df, filepath)
     df['chr_num'] = parse_chr_to_num(df['chr'])
     _atomic_save_parquet(df, cache_path)
     _atomic_save_metadata(meta_path, fingerprint)

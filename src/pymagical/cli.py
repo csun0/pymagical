@@ -32,6 +32,8 @@ def main():
     run_parser.add_argument("--motif-info", type=str, help="Override: motif_info.txt path")
     run_parser.add_argument("--tad-file", type=str, help="Override: tad_regions.txt path")
     run_parser.add_argument("--refseq-file", type=str, help="Override: rhemac10_refseq.txt path")
+    run_parser.add_argument("--no-tad", action="store_true", help="Run without a TAD prior (MATLAB TAD_flag=0): link peaks to genes by distance to TSS only")
+    run_parser.add_argument("--distance-control", type=float, default=5e5, help="Max peak-center-to-TSS distance in bp when --no-tad is set (default: 500000)")
 
     # --- Viz Command ---
     viz_parser = subparsers.add_parser("viz", help="Generate interactive HTML report from results")
@@ -101,9 +103,10 @@ def main():
             "ATAC Meta": atac_meta,
             "Motif Mapping": motif_mapping,
             "Motif Info": motif_info,
-            "TAD File": tad_file,
             "RefSeq File": refseq_file
         }
+        if not args.no_tad:
+            required_files["TAD File"] = tad_file
 
         missing = [name for name, path in required_files.items() if path is None or not os.path.exists(path)]
         if missing:
@@ -129,13 +132,14 @@ def main():
             atac_meta_file=atac_meta,
             motif_mapping_file=motif_mapping,
             motif_name_file=motif_info,
-            tad_flag=1,
-            tad_file=tad_file,
+            tad_flag=0 if args.no_tad else 1,
+            tad_file=None if args.no_tad else tad_file,
             refseq_file=refseq_file,
             output_file=out_file,
             iteration_num=args.iter,
             dump_weight_history=args.dump_weights,
-            use_numba=args.use_numba
+            use_numba=args.use_numba,
+            distance_control=args.distance_control
         )
         
     elif args.command == "viz":

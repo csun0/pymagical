@@ -6,7 +6,7 @@ from .data_loader import (
     load_candidate_genes, load_candidate_peaks, load_scrna_data, 
     load_scatac_data, load_motif_prior, load_tad_regions, load_refseq
 )
-from .circuits import construct_candidate_circuits_with_tad
+from .circuits import construct_candidate_circuits
 from .initialization import initialize_magical
 from .estimation import magical_estimation
 
@@ -17,7 +17,7 @@ def run_magical(
     motif_mapping_file, motif_name_file,
     tad_flag, tad_file, refseq_file,
     output_file, iteration_num, burn_in=None, dump_weight_history=False,
-    use_numba=False
+    use_numba=False, distance_control=5e5
 ):
     timing = {}
     
@@ -46,18 +46,22 @@ def run_magical(
     timing['Data Loading'] = time.time() - t_start
     
     t_stage = time.time()
+    # TAD_flag=1 if a TAD prior is provided; TAD_flag=0 links peaks to genes by
+    # distance to TSS only (distance_control, MATLAB default 500 kb).
     if tad_flag == 1:
         tads = load_tad_regions(tad_file)
-        
-        circuit_res = construct_candidate_circuits_with_tad(
-            common_samples, cand_genes, cand_peaks,
-            rna_genes, rna_cells, rna_counts,
-            atac_peaks, atac_cells, atac_counts,
-            motifs, motif_prior, refseq, tads
-        )
     else:
-        raise NotImplementedError("TAD_flag=0 not implemented")
-        
+        tads = None
+        print(f"No TAD prior: linking peaks within {distance_control:g} bp of gene TSS.\n")
+
+    circuit_res = construct_candidate_circuits(
+        common_samples, cand_genes, cand_peaks,
+        rna_genes, rna_cells, rna_counts,
+        atac_peaks, atac_cells, atac_counts,
+        motifs, motif_prior, refseq,
+        tad_regions=tads, distance_control=distance_control
+    )
+
     if circuit_res is None:
         return
     timing['Circuit Construction'] = time.time() - t_stage

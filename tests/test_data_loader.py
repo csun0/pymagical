@@ -61,3 +61,27 @@ def test_load_refseq(mock_data_dir):
     refseq = load_refseq(refseq_file)
     assert len(refseq) == 2
     assert "GeneA" in refseq['gene_name'].values
+
+def test_load_refseq_rejects_header(mock_data_dir):
+    # Original MAGICAL refseq files start with a header line; it must not be read as data.
+    refseq_file = os.path.join(mock_data_dir, "refseq_with_header.txt")
+    with open(refseq_file, "w") as f:
+        f.write("chr\tstrand\tstart\tend\tgene_name\n")
+        f.write("chr1\t+\t100\t200\tGeneA\n")
+    with pytest.raises(ValueError, match="line 1: chr\tstrand\tstart\tend\tgene_name"):
+        load_refseq(refseq_file)
+
+def test_load_scatac_ignores_extra_peak_columns(mock_data_dir):
+    # Original MAGICAL peak files have 6 columns (idx, chr, start, end, width, strand).
+    peaks_file = os.path.join(mock_data_dir, "atac_peaks_6col.txt")
+    with open(peaks_file, "w") as f:
+        f.write("1\tchr1\t100\t200\t101\t*\n")
+        f.write("2\tchr1\t300\t400\t101\t*\n")
+        f.write("3\tchr1\t500\t600\t101\t*\n")
+    peaks, _, _ = load_scatac_data(os.path.join(mock_data_dir, "atac_counts.txt"), peaks_file,
+                                   os.path.join(mock_data_dir, "atac_meta.txt"))
+    assert list(peaks.columns) == ['peak_index', 'chr', 'point1', 'point2', 'chr_num']
+    assert peaks['chr'].tolist() == ["chr1"] * 3
+    assert peaks['point1'].tolist() == [100, 300, 500]
+    assert peaks['point2'].tolist() == [200, 400, 600]
+    assert peaks['chr_num'].tolist() == [1, 1, 1]

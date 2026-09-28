@@ -32,7 +32,7 @@ Input files are 1-indexed TSVs (MATLAB origin). `--main-dir` holds shared files 
 `magical.py::run_magical` orchestrates four sequential stages, each in its own module:
 
 1. **`data_loader.py`**: parses input TSVs. COO count matrices (`atac_counts.txt` is ~374MB) are expensive to parse, so first load caches into a hidden `.magical_cache/` dir next to the source (`.parquet` for DataFrames, `.npz` for sparse matrices). Cache validity is keyed on an MD5 fingerprint of source file path/size/mtime; a `completed` flag guards against partial writes. Subsequent loads drop from ~26s to ~1s.
-2. **`circuits.py`**: `construct_candidate_circuits_with_tad` intersects candidate peaks/genes with the count matrices and TAD boundaries to build the TF/Peak/Gene binding (`B`) and looping (`L`) candidate state matrices. Only `tad_flag=1` is implemented.
+2. **`circuits.py`**: `construct_candidate_circuits` intersects candidate peaks/genes with the count matrices to build the TF/Peak/Gene binding (`B`) and looping (`L`) candidate state matrices. With a TAD prior (`tad_flag=1`), a peak-gene pair needs a shared TAD and TSS distance < 1 Mb; without one (`tad_flag=0`, CLI `--no-tad`), only TSS distance < `distance_control` (default 500 kb). This looping step is the only difference between MATLAB's `_with_TAD`/`_without_TAD` functions, which exist here as thin wrappers.
 3. **`initialization.py`**: OLS-based (`statsmodels`) seeding of priors (means/variances/probabilities) for the sampler.
 4. **`estimation.py::magical_estimation`**: the Gibbs sampler. Returns final `B`/`L` probability matrices, mean weights, and per-edge sign-consistency probabilities.
 
