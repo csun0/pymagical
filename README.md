@@ -66,11 +66,23 @@ uv run pytest               # test suite
 
 ### 1. Command Line Usage
 
-Once installed, run the circuit inference directly from your terminal. Use `--use-numba` for maximum performance:
-
 ```bash
+# Setup a new workspace
+mkdir pymagical_demo
+cd pymagical_demo
+
+# Download demo input files
+curl -fLC - --retry 3 -O /
+https://github.com/csun0/pymagical/releases/download/data-v1.0/magical_demo_input_files.tar.gz
+tar -xzf magical_demo_input_files.tar.gz
+
+# Install pymagical in a virtual environment
+python -m venv .venv
+source .venv/bin/activate
+pip install pymagical
+
 # Run with default data for 500 iterations using Numba
-pymagical run --main-dir path/to/data --cell-dir path/to/data/astrocytes --iter 500 --use-numba --outdir results/
+pymagical run --main-dir Demo_input_files --cell-dir Demo_input_files --iter 500 --use-numba --outdir results/
 
 # Generate an interactive HTML visualization report (requires [viz] extra)
 pymagical viz results/magical_py_500.txt
