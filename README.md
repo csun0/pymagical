@@ -84,10 +84,7 @@ pip install pymagical
 # Run with default data for 500 iterations using Numba
 pymagical run --main-dir Demo_input_files --cell-dir Demo_input_files --iter 500 --use-numba --outdir results/
 
-# Generate an interactive HTML visualization report (requires [viz] extra)
-pymagical viz results/magical_py_500.txt
-
-# Open the light circuit dashboard for all result sets in a directory
+# Create the circuit dashboard for all result sets in a directory
 pymagical dashboard --input_dir results/
 ```
 
