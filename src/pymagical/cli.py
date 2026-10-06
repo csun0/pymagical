@@ -40,6 +40,10 @@ def main():
     viz_parser.add_argument("input", type=str, help="Input result text file (e.g., astrocytes_py_2000.txt)")
     viz_parser.add_argument("--output", type=str, default=None, help="Output HTML file path (defaults to input path with .html extension)")
 
+    from .dashboard import add_arguments
+    dashboard_parser = subparsers.add_parser("dashboard", help="Open the circuit dashboard for a results directory")
+    add_arguments(dashboard_parser)
+
     # Legacy support / default to run
     # If -h/--help is the only argument, we want to show help for 'run' too
     # since it is the primary command and users expect to see its flags.
@@ -50,7 +54,7 @@ def main():
         run_parser.print_help()
         sys.exit(0)
 
-    if len(sys.argv) > 1 and sys.argv[1] not in ["run", "viz", "-h", "--help"]:
+    if len(sys.argv) > 1 and sys.argv[1] not in ["run", "viz", "dashboard", "-h", "--help"]:
         sys.argv.insert(1, "run")
     
     if len(sys.argv) == 1:
@@ -170,6 +174,10 @@ def main():
             distance_control=args.distance_control
         )
         
+    elif args.command == "dashboard":
+        from .dashboard import launch_dashboard
+        launch_dashboard(args, dashboard_parser)
+
     elif args.command == "viz":
         try:
             # Defer imports

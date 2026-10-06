@@ -86,9 +86,26 @@ pymagical run --main-dir Demo_input_files --cell-dir Demo_input_files --iter 500
 
 # Generate an interactive HTML visualization report (requires [viz] extra)
 pymagical viz results/magical_py_500.txt
+
+# Open the light circuit dashboard for all result sets in a directory
+pymagical dashboard --input_dir results/
 ```
 
 Run `pymagical --help` to see all available flags and subcommands.
+
+The dashboard is included in the installed package; no clone or separate update
+script is needed. `--input_dir` is required (`--input-dir` also works). It reads
+result `.txt` files directly from that directory, skipping matrix and timing
+sidecars, saves `results/dashboard.html`, and opens it in your browser. Run again
+after adding or updating results to refresh the saved dashboard.
+
+On a remote machine, use `pymagical dashboard --input_dir results/ --no-open`,
+then copy the saved HTML to your computer and open it. Use `--output PATH.html`
+to save elsewhere. Charts, tables, and fonts use CDNs, so the browser needs
+internet access. No `[viz]` extra is required for the dashboard.
+
+The legacy helper accepts the same required input flag:
+`uv run src/pymagical/ui/update_ui.py --input_dir results/ --no-open`.
 
 ### 2. Run the Downloadable Demo
 

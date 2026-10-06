@@ -53,9 +53,12 @@ raw-options = { fallback_version = "0.0.0" }
 
 [tool.hatch.build.targets.sdist]
 include = ["src/pymagical", "README.md", "LICENSE"]
+exclude = ["src/pymagical/ui/data", "src/pymagical/ui/data.js", "src/pymagical/ui/frontend", "src/pymagical/ui.zip"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pymagical"]
+exclude = ["src/pymagical/ui/data", "src/pymagical/ui/data.js", "src/pymagical/ui/frontend", "src/pymagical/ui.zip"]
+artifacts = ["src/pymagical/ui/magical_explorer.html"]
 
 # Developer tooling (PEP 735). Installed by `uv sync` automatically; not part of
 # the published wheel. Bundles the viz libs so `pymagical viz` works locally.
