@@ -17,21 +17,21 @@ def main():
     
     # Directory-based input
     run_parser.add_argument("--main-dir", type=str, help="Main data folder containing motifs, tad, and refseq info")
-    run_parser.add_argument("--cell-dir", type=str, help="Celltype specific folder containing scRNA and scATAC data")
+    run_parser.add_argument("--cell-dir", type=str, help="Celltype folder containing scRNA and scATAC data; relative paths are resolved from the working directory, independently of --main-dir")
 
     # Input File Overrides (defaults will be set if directories are provided)
-    run_parser.add_argument("--cand-genes", type=str, help="Override: sig_cr_genes.txt path")
-    run_parser.add_argument("--cand-peaks", type=str, help="Override: sig_cr_peaks.txt path")
-    run_parser.add_argument("--rna-counts", type=str, help="Override: rna_counts.txt path")
-    run_parser.add_argument("--rna-genes", type=str, help="Override: rna_genes.txt path")
-    run_parser.add_argument("--rna-meta", type=str, help="Override: rna_meta.txt path")
-    run_parser.add_argument("--atac-counts", type=str, help="Override: atac_counts.txt path")
-    run_parser.add_argument("--atac-peaks", type=str, help="Override: atac_peaks.txt path")
-    run_parser.add_argument("--atac-meta", type=str, help="Override: atac_meta.txt path")
-    run_parser.add_argument("--motif-mapping", type=str, help="Override: motif_prior.txt path")
-    run_parser.add_argument("--motif-info", type=str, help="Override: motif_info.txt path")
-    run_parser.add_argument("--tad-file", type=str, help="Override: tad_regions.txt path")
-    run_parser.add_argument("--refseq-file", type=str, help="Override: rhemac10_refseq.txt path")
+    run_parser.add_argument("--cand-genes", type=str, help="Override: Cell_type_candidate_genes.txt path")
+    run_parser.add_argument("--cand-peaks", type=str, help="Override: Cell_type_candidate_peaks.txt path")
+    run_parser.add_argument("--rna-counts", type=str, help="Override: Cell_type_scRNA_read_count.txt path")
+    run_parser.add_argument("--rna-genes", type=str, help="Override: scRNA_genes.txt path")
+    run_parser.add_argument("--rna-meta", type=str, help="Override: Cell_type_scRNA_cell_meta.txt path")
+    run_parser.add_argument("--atac-counts", type=str, help="Override: Cell_type_scATAC_read_count.txt path")
+    run_parser.add_argument("--atac-peaks", type=str, help="Override: scATAC_peaks.txt path")
+    run_parser.add_argument("--atac-meta", type=str, help="Override: Cell_type_scATAC_cell_meta.txt path")
+    run_parser.add_argument("--motif-mapping", type=str, help="Override: Motif_mapping_prior.txt path")
+    run_parser.add_argument("--motif-info", type=str, help="Override: Motifs.txt path")
+    run_parser.add_argument("--tad-file", type=str, help="Override: RaoGM12878_40kb_TopDomTADs_filtered_hg38.txt path")
+    run_parser.add_argument("--refseq-file", type=str, help="Override: hg38_Refseq.txt path")
     run_parser.add_argument("--no-tad", action="store_true", help="Run without a TAD prior (MATLAB TAD_flag=0): link peaks to genes by distance to TSS only")
     run_parser.add_argument("--distance-control", type=float, default=5e5, help="Max peak-center-to-TSS distance in bp when --no-tad is set (default: 500000)")
 
@@ -64,12 +64,6 @@ def main():
         # Defer imports
         from .magical import run_magical
 
-        # Resolve paths
-        if args.main_dir and args.cell_dir:
-            # If cell_dir is provided as a relative path, assume it is under main_dir
-            if not os.path.isabs(args.cell_dir):
-                args.cell_dir = os.path.join(args.main_dir, args.cell_dir)
-
         def resolve(val, folder, filename):
             if val is not None:
                 return val
@@ -77,19 +71,19 @@ def main():
                 return os.path.join(folder, filename)
             return None
 
-        cand_genes = resolve(args.cand_genes, args.cell_dir, "sig_cr_genes.txt")
-        cand_peaks = resolve(args.cand_peaks, args.cell_dir, "sig_cr_peaks.txt")
-        rna_counts = resolve(args.rna_counts, args.cell_dir, "rna_counts.txt")
-        rna_genes = resolve(args.rna_genes, args.cell_dir, "rna_genes.txt")
-        rna_meta = resolve(args.rna_meta, args.cell_dir, "rna_meta.txt")
-        atac_counts = resolve(args.atac_counts, args.cell_dir, "atac_counts.txt")
-        atac_peaks = resolve(args.atac_peaks, args.cell_dir, "atac_peaks.txt")
-        atac_meta = resolve(args.atac_meta, args.cell_dir, "atac_meta.txt")
+        cand_genes = resolve(args.cand_genes, args.cell_dir, "Cell_type_candidate_genes.txt")
+        cand_peaks = resolve(args.cand_peaks, args.cell_dir, "Cell_type_candidate_peaks.txt")
+        rna_counts = resolve(args.rna_counts, args.cell_dir, "Cell_type_scRNA_read_count.txt")
+        rna_genes = resolve(args.rna_genes, args.cell_dir, "scRNA_genes.txt")
+        rna_meta = resolve(args.rna_meta, args.cell_dir, "Cell_type_scRNA_cell_meta.txt")
+        atac_counts = resolve(args.atac_counts, args.cell_dir, "Cell_type_scATAC_read_count.txt")
+        atac_peaks = resolve(args.atac_peaks, args.cell_dir, "scATAC_peaks.txt")
+        atac_meta = resolve(args.atac_meta, args.cell_dir, "Cell_type_scATAC_cell_meta.txt")
         
-        motif_mapping = resolve(args.motif_mapping, args.main_dir, "motif_prior.txt")
-        motif_info = resolve(args.motif_info, args.main_dir, "motif_info.txt")
-        tad_file = resolve(args.tad_file, args.main_dir, "tad_regions.txt")
-        refseq_file = resolve(args.refseq_file, args.main_dir, "rhemac10_refseq.txt")
+        motif_mapping = resolve(args.motif_mapping, args.main_dir, "Motif_mapping_prior.txt")
+        motif_info = resolve(args.motif_info, args.main_dir, "Motifs.txt")
+        tad_file = resolve(args.tad_file, args.main_dir, "RaoGM12878_40kb_TopDomTADs_filtered_hg38.txt")
+        refseq_file = resolve(args.refseq_file, args.main_dir, "hg38_Refseq.txt")
 
         # Validate that we have all required files
         required_files = {
@@ -108,10 +102,44 @@ def main():
         if not args.no_tad:
             required_files["TAD File"] = tad_file
 
-        missing = [name for name, path in required_files.items() if path is None or not os.path.exists(path)]
+        input_flags = {
+            "Candidate Genes": "--cand-genes",
+            "Candidate Peaks": "--cand-peaks",
+            "RNA Counts": "--rna-counts",
+            "RNA Genes": "--rna-genes",
+            "RNA Meta": "--rna-meta",
+            "ATAC Counts": "--atac-counts",
+            "ATAC Peaks": "--atac-peaks",
+            "ATAC Meta": "--atac-meta",
+            "Motif Mapping": "--motif-mapping",
+            "Motif Info": "--motif-info",
+            "RefSeq File": "--refseq-file",
+            "TAD File": "--tad-file",
+        }
+        missing = [name for name, path in required_files.items() if path is None or not os.path.isfile(path)]
         if missing:
-            print(f"Error: Missing required input files or directories:\n  " + "\n  ".join(missing))
-            print("\nPlease provide --main-dir and --cell-dir, or individual file overrides.")
+            print(f"Error: {len(missing)} required input file(s) missing or invalid.")
+            print(f"Working directory: {os.getcwd()}")
+            print("\nMissing or invalid inputs (resolved absolute paths):")
+            for name in missing:
+                path = required_files[name]
+                if path is None:
+                    status, location = "UNSET", "no path supplied"
+                else:
+                    location = os.path.abspath(path)
+                    if os.path.exists(path):
+                        status = "NOT A FILE"
+                    else:
+                        status = "MISSING"
+                print(f"  [{status}] {name} ({input_flags[name]}): {location}")
+            print("\nRelative directory paths are resolved from the working directory.")
+            if args.main_dir:
+                print(f"  Main directory: {os.path.abspath(args.main_dir)}")
+            if args.cell_dir:
+                print(f"  Resolved cell directory: {os.path.abspath(args.cell_dir)}")
+            print("--main-dir and --cell-dir are independent paths; neither is joined to the other.")
+            print("If all inputs are in one folder, pass that folder to both options.")
+            print("Supply any individual file using the override flag shown above.")
             sys.exit(1)
 
         os.makedirs(args.outdir, exist_ok=True)

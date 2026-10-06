@@ -50,25 +50,31 @@ e.g. `uv run pytest` or `uv run pymagical --help`.
 
 | File | Description | Format (Columns) | Header? |
 | :--- | :--- | :--- | :--- |
-| `sig_cr_genes.txt` | Candidate gene list | `gene_symbol` | No |
-| `sig_cr_peaks.txt` | Candidate peak list | `chr`, `start`, `end` | No |
-| `motif_info.txt` | TF-to-Motif mapping | `motif_index`, `tf_name` | No |
-| `motif_prior.txt` | Motif-Peak binding prior | `peak_index`, `motif_index`, `flag` (binary) | No |
-| `tad_regions.txt` | TAD boundaries | `chr`, `left_boundary`, `right_boundary` | No |
-| `rhemac10_refseq.txt` | Genomic reference | `chr`, `strand`, `start`, `end`, `gene_name` | No |
+| `Cell_type_candidate_genes.txt` | Candidate gene list | `gene_symbol` | No |
+| `Cell_type_candidate_peaks.txt` | Candidate peak list | `chr`, `start`, `end` | No |
+| `Motifs.txt` | TF-to-Motif mapping | `motif_index`, `tf_name` | No |
+| `Motif_mapping_prior.txt` | Motif-Peak binding prior | `peak_index`, `motif_index`, `flag` (binary) | No |
+| `RaoGM12878_40kb_TopDomTADs_filtered_hg38.txt` | TAD boundaries | `chr`, `left_boundary`, `right_boundary` | No |
+| `hg38_Refseq.txt` | Genomic reference | `chr`, `strand`, `start`, `end`, `gene_name` | No |
 
 ### Cell-Type Specific Files (Required for each cell type folder)
 
 | File | Description | Format (Columns) | Header? |
 | :--- | :--- | :--- | :--- |
-| `rna_counts.txt` | scRNA count matrix | `gene_index`, `cell_index`, `read_count` (COO format) | No |
-| `rna_genes.txt` | scRNA gene metadata | `gene_index`, `gene_symbol` | No |
-| `rna_meta.txt` | scRNA cell metadata | `cell_index`, `barcode`, `type`, `subject_ID`, `condition` | No |
-| `atac_counts.txt` | scATAC count matrix | `peak_index`, `cell_index`, `read_count` (COO format) | No |
-| `atac_peaks.txt` | scATAC peak metadata | `peak_index`, `chr`, `start`, `end` | No |
-| `atac_meta.txt` | scATAC cell metadata | `cell_index`, `barcode`, `type`, `subject_ID`, `condition` | No |
+| `Cell_type_scRNA_read_count.txt` | scRNA count matrix | `gene_index`, `cell_index`, `read_count` (COO format) | No |
+| `scRNA_genes.txt` | scRNA gene metadata | `gene_index`, `gene_symbol` | No |
+| `Cell_type_scRNA_cell_meta.txt` | scRNA cell metadata | `cell_index`, `barcode`, `type`, `subject_ID`, `condition` | No |
+| `Cell_type_scATAC_read_count.txt` | scATAC count matrix | `peak_index`, `cell_index`, `read_count` (COO format) | No |
+| `scATAC_peaks.txt` | scATAC peak metadata | `peak_index`, `chr`, `start`, `end` | No |
+| `Cell_type_scATAC_cell_meta.txt` | scATAC cell metadata | `cell_index`, `barcode`, `type`, `subject_ID`, `condition` | No |
 
 > **Important:** All indices (`gene_index`, `cell_index`, `peak_index`) should be **1-indexed** (starting from 1) to remain compatible with standard MAGICAL data formats.
+
+These filenames are the CLI's directory-based defaults. The downloaded demo
+stores all files in one folder: use
+`--main-dir Demo_input_files --cell-dir Demo_input_files`. Both directory options
+resolve independently from the working directory.
+Its `hg38_Refseq.txt` is header-free and ready to use with the CLI defaults.
 
 ---
 
@@ -81,7 +87,7 @@ The most efficient way to run the pipeline is using the `pymagical` command (or 
 # Run with Numba acceleration (Recommended)
 pymagical run \
     --main-dir ./data \
-    --cell-dir astrocytes \
+    --cell-dir ./data/astrocytes \
     --iter 2000 \
     --use-numba \
     --prefix my_experiment \
@@ -139,19 +145,19 @@ You can also integrate `pymagical` directly into your Python scripts. Unlike the
 from pymagical import run_magical
 
 run_magical(
-    cand_gene_file="data/astrocytes/sig_cr_genes.txt",
-    cand_peak_file="data/astrocytes/sig_cr_peaks.txt",
-    rna_counts_file="data/astrocytes/rna_counts.txt",
-    rna_genes_file="data/astrocytes/rna_genes.txt",
-    rna_meta_file="data/astrocytes/rna_meta.txt",
-    atac_counts_file="data/astrocytes/atac_counts.txt",
-    atac_peaks_file="data/astrocytes/atac_peaks.txt",
-    atac_meta_file="data/astrocytes/atac_meta.txt",
-    motif_mapping_file="data/motif_prior.txt",
-    motif_name_file="data/motif_info.txt",
+    cand_gene_file="data/astrocytes/Cell_type_candidate_genes.txt",
+    cand_peak_file="data/astrocytes/Cell_type_candidate_peaks.txt",
+    rna_counts_file="data/astrocytes/Cell_type_scRNA_read_count.txt",
+    rna_genes_file="data/astrocytes/scRNA_genes.txt",
+    rna_meta_file="data/astrocytes/Cell_type_scRNA_cell_meta.txt",
+    atac_counts_file="data/astrocytes/Cell_type_scATAC_read_count.txt",
+    atac_peaks_file="data/astrocytes/scATAC_peaks.txt",
+    atac_meta_file="data/astrocytes/Cell_type_scATAC_cell_meta.txt",
+    motif_mapping_file="data/Motif_mapping_prior.txt",
+    motif_name_file="data/Motifs.txt",
     tad_flag=1,
-    tad_file="data/tad_regions.txt",
-    refseq_file="data/rhemac10_refseq.txt",
+    tad_file="data/RaoGM12878_40kb_TopDomTADs_filtered_hg38.txt",
+    refseq_file="data/hg38_Refseq.txt",
     output_file="results/astrocytes_circuits.txt",
     iteration_num=2000,
     use_numba=True,
