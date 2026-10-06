@@ -72,7 +72,7 @@ mkdir pymagical_demo
 cd pymagical_demo
 
 # Download demo input files
-curl -fLC - --retry 3 -O /
+curl -fLC - --retry 3 -O \
 https://github.com/csun0/pymagical/releases/download/data-v1.0/magical_demo_input_files.tar.gz
 tar -xzf magical_demo_input_files.tar.gz
 
