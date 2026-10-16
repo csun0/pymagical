@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 .magical_cache/
 outputs/
+/inputs
+/outputs_10000/
+/outputs_plus/
 eval/benchmarks/logs/
 outputs_bench/
 .DS_Store
